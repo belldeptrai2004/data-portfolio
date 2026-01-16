@@ -1,243 +1,135 @@
 /* =====================================================================
-   OLIST E-COMMERCE – SQL ANALYSIS
+   OLIST DELIVERY DELAY & CUSTOMER SATISFACTION – SQL ANALYSIS
    Author: Pham Minh Khoi
+   Tool: DBeaver Ultimate
    Database: PostgreSQL
    Schema: raw
+   Scope: Portfolio (SQL-only), single business story
    ===================================================================== */
 
 /* =====================================================================
-   A. Orders & Revenue Performance
+   0. PROJECT FRAME
+   Business Story:
+     - Delivery Delay → Customer Satisfaction (Review Score)
+
+   Core Questions:
+     Q1. Do late deliveries receive lower review scores?
+     Q2. How does review severity change across delay buckets?
+     Q3. Which customer regions exhibit higher late-delivery risk?
+
+   Output Standard (for screenshots/README):
+     - Clean, order-level tables with counts, rates, and robust summaries
    ===================================================================== */
 
----------------------------------------------------------------
--- Q1.1 – Monthly Revenue Overview
--- Goal:
---   • Track monthly orders, revenue, and average order value (AOV).
---   • Focus only on completed business (delivered orders).
----------------------------------------------------------------
-
-SELECT
-    date_trunc('month', o.order_purchase_timestamp::timestamp)::date AS month,
-    COUNT(DISTINCT o.order_id)                                   AS order_count,
-    SUM(p.payment_value)                                         AS revenue,
-    ROUND(
-        SUM(p.payment_value)::numeric
-        / NULLIF(COUNT(DISTINCT o.order_id), 0),
-        2
-    )                                                            AS avg_order_value
-FROM raw.orders o
-JOIN raw.order_payments p
-    ON p.order_id = o.order_id
-WHERE o.order_status = 'delivered'
-GROUP BY 1
-ORDER BY 1;
-
-
----------------------------------------------------------------
--- Q1.2 - Order Status Distribution (Operational Funnel)
--- Goal:
---   • Assess operational outcomes by order status.
---   • Evaluate marketplace health via delivered vs failed vs in-progress orders.
--- Notes:
---   • This reflects a post-operational snapshot, not a real-time conversion funnel.
----------------------------------------------------------------
-
-SELECT
-    CASE
-        WHEN order_status = 'delivered' THEN 'Delivered'
-        WHEN order_status IN ('canceled', 'unavailable') THEN 'Failed'
-        ELSE 'In Progress'
-    END AS funnel_stage,
-    COUNT(*) AS order_count,
-    ROUND(
-        COUNT(*) * 100.0 / SUM(COUNT(*)) OVER (),
-        2
-    ) AS percentage
-FROM raw.orders
-GROUP BY funnel_stage
-ORDER BY order_count DESC;
-
----------------------------------------------------------------
--- Q1.3 – Daily / Weekly Seasonality
--- Goal:
---   • Analyze sales seasonality by day-of-week and possibly by date.
---   • Use delivered orders as baseline.
----------------------------------------------------------------
-
-
-SELECT
-  EXTRACT(DOW FROM order_purchase_timestamp::timestamp) AS weekday,
-  COUNT(*) AS order_count
-FROM raw.orders
-WHERE order_status = 'delivered'
-GROUP BY weekday
-ORDER BY weekday;
-
-
-
----------------------------------------------------------------
--- Q1.4 – Freight Impact on Revenue
--- Goal:
---   • Compare product_value vs freight_value by customer state.
---   • Understand where shipping is relatively expensive.
----------------------------------------------------------------
-
--- TODO: write query joining orders, order_items, customers
---       and aggregating freight vs product value by state.
-
-
-
 /* =====================================================================
-   B. Customer Behavior & Loyalty
+   1. BUILD ANALYSIS DATASET (ORDER-LEVEL FACT VIEW)
+   File section name: BASE FACT VIEW
+
+   Goal:
+     - Create a standardized order-level dataset to support all queries.
+     - Join only essential tables:
+         raw.orders, raw.order_reviews, raw.customers
+     - Derive:
+         delivery_days, delay_days, delay_bucket
+
+   Expected Output Columns:
+     order_id
+     customer_id
+     customer_state
+     purchase_ts
+     delivered_customer_ts
+     estimated_delivery_ts
+     review_score
+     delivery_days
+     delay_days
+     delay_bucket
    ===================================================================== */
 
----------------------------------------------------------------
--- Q2.1 – Returning vs One-time Customers
--- Goal:
---   • Count how many customers ordered 1 time, 2–3 times, 4+ times.
----------------------------------------------------------------
-
--- TODO: write query grouping customers by order_count buckets.
-
-
----------------------------------------------------------------
--- Q2.2 – Customer LTV Approximation
--- Goal:
---   • Compute total order value per customer (delivered orders).
---   • Can later be bucketed into LTV tiers (low/medium/high).
----------------------------------------------------------------
-
--- TODO: write query summing payment_value per customer_id.
-
-
----------------------------------------------------------------
--- Q2.3 – Average Delivery Time per Customer Region
--- Goal:
---   • Compute avg delivery time (delivered_date - purchase_date)
---     by customer_state (or city).
----------------------------------------------------------------
-
--- TODO: write query with date_diff between delivered_customer_date
---       and purchase_timestamp, grouped by region.
-
-
-
 /* =====================================================================
-   C. Delivery & Logistics Efficiency
+   2. DATA QUALITY CHECKS
+   File section name: DATA QUALITY
+
+   Checks:
+     - Delivered order coverage vs fact view coverage
+     - Duplicate order_id in fact view (should be 1 row per order)
+     - Missing timestamps (purchase/delivered/estimated)
+     - Impossible sequences (delivered < purchase)
+
+   Expected Outputs:
+     - Summary counts table
+     - Duplicate list (should be empty)
+     - Anomaly count + sample rows (LIMIT 20)
    ===================================================================== */
 
----------------------------------------------------------------
--- Q3.1 – Actual vs Estimated Delivery Time
--- Goal:
---   • Compare actual delivery_time vs estimated (carrier_date to limit_date).
---   • Detect whether Olist tends to under- or over-estimate.
----------------------------------------------------------------
-
--- TODO: write query with:
---   actual_days     = delivered_customer_date - purchase_timestamp
---   estimated_days  = order_estimated_delivery_date - purchase_timestamp
-
-
----------------------------------------------------------------
--- Q3.2 – Late Deliveries by State & Seller
--- Goal:
---   • Identify late deliveries and rank states / sellers by count and rate.
----------------------------------------------------------------
-
--- TODO: write query:
---   late_flag = delivered_customer_date > order_estimated_delivery_date.
-
-
----------------------------------------------------------------
--- Q3.3 – Inconsistent Timestamps
--- Goal:
---   • Find obviously wrong data (e.g., delivered before shipped).
----------------------------------------------------------------
-
--- TODO: write query selecting orders where
---   delivered_customer_date < order_delivered_carrier_date
---   OR other weird sequences.
-
-
-
 /* =====================================================================
-   D. Product & Category Insights
+   3. BASELINE METRICS (SANITY KPIs)
+   File section name: KPI BASELINE
+
+   KPIs:
+     - Total delivered orders in analysis
+     - On-time rate (% delay_days <= 0)
+     - Late rate (% delay_days > 0)
+     - Median delay_days (overall + late only)
+     - Average review_score (overall)
+
+   Expected Outputs:
+     - 1 KPI table (single row)
+     - Optional: KPI breakdown by delay_bucket
    ===================================================================== */
 
----------------------------------------------------------------
--- Q4.1 – Best-selling Product Categories
--- Goal:
---   • Rank categories by:
---       - number of orders
---       - total quantity
---       - total revenue
----------------------------------------------------------------
-
--- TODO: write query joining order_items, products,
---       product_category_name_translation (for English names),
---       aggregated by category.
-
-
----------------------------------------------------------------
--- Q4.2 – Categories with Highest Review Score
--- Goal:
---   • Compute avg review_score per product category.
----------------------------------------------------------------
-
--- TODO: write query joining order_reviews, order_items, products,
---       grouped by category with avg(review_score) and review_count.
-
-
----------------------------------------------------------------
--- Q4.3 – Price Distribution across Categories
--- Goal:
---   • Explore unit_price distribution (min, p25, median, p75, max)
---     by product category.
----------------------------------------------------------------
-
--- TODO: write query using price stats per category
---       (you can start with min/avg/max; later add percentiles with
---        PostgreSQL percentile_cont).
-
-
-
 /* =====================================================================
-   E. Seller Performance
+   4. RELATIONSHIP ANALYSIS (CORE INSIGHT)
+   File section name: DELAY VS REVIEW
+
+   Analysis:
+     - Review_score summary by delay_bucket
+         count_orders
+         avg_review_score
+         median_review_score
+         pct_1_2_star
+         pct_5_star
+     - Optional: review distribution (counts by score 1–5) per bucket
+
+   Expected Outputs:
+     - 1 main summary table (for screenshot)
+     - Optional distribution table (for deeper evidence)
    ===================================================================== */
 
----------------------------------------------------------------
--- Q5.1 – Top Sellers by Revenue
--- Goal:
---   • Rank sellers by total revenue and number of delivered orders.
----------------------------------------------------------------
+/* =====================================================================
+   5. SEGMENTATION (WHERE IS THE RISK?)
+   File section name: SEGMENTATION (CUSTOMER REGION)
 
--- TODO: write query joining order_items, orders, order_payments, sellers,
---       grouping by seller_id.
+   Analysis:
+     - Late delivery rate by customer_state
+         total_orders
+         late_orders
+         late_rate
+         avg_delay_days (late only)
+         avg_review_score
+     - Rank worst states by late_rate and/or avg_delay_days
 
-
----------------------------------------------------------------
--- Q5.2 – Seller Cancellation Rate
--- Goal:
---   • For each seller, compute:
---       - total orders linked to that seller
---       - canceled orders
---       - cancellation_rate = canceled / total
----------------------------------------------------------------
-
--- TODO: write query using orders + order_items per seller.
-
-
----------------------------------------------------------------
--- Q5.3 – Seller Average Delivery Time
--- Goal:
---   • For each seller, compute avg customer delivery time.
----------------------------------------------------------------
-
--- TODO: write query using orders + order_items + sellers,
---       calculating delivered_customer_date - purchase_timestamp.
-
-
+   Expected Outputs:
+     - Top 10 worst states table
+     - Optional: full table export
+   ===================================================================== */
 
 /* =====================================================================
-   END OF FILE
+   6. SYNTHESIS QUERIES (FINAL TABLES USED IN README)
+   File section name: SYNTHESIS
+
+   Goal:
+     - Produce final “presentation-ready” outputs:
+         - Key Findings table (bucket metrics)
+         - Top risk states table
+
+   Expected Outputs:
+     - 2 final tables, stable formatting, ready for screenshots
+   ===================================================================== */
+
+/* =====================================================================
+   7. END OF FILE
+   Notes:
+     - Keep all queries in this file ordered by sections above.
+     - Each section should produce 1–2 screenshot-worthy result tables max.
+     - Avoid expanding scope to payments/sellers/categories unless necessary.
    ===================================================================== */
