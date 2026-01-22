@@ -1,27 +1,25 @@
-# 🧾 Insurance Charges Drivers & Risk Segmentation (SQL)
+# Insurance Charges Drivers & High-Cost Risk Segmentation (SQL)
 
 **Project type:** SQL Analytics Case Study (Portfolio)  
-**Focus:** Key drivers of insurance charges and high-cost risk segmentation  
+**Focus:** Quantifying key charge drivers and identifying high-cost risk segments  
 **Tools:** PostgreSQL, DBeaver Ultimate  
+**Grain:** 1 row = 1 customer record  
 
 ---
 
 ## 1. Business Context
-Insurance pricing and underwriting decisions rely on understanding which customer attributes are associated with higher expected medical costs. Factors such as smoking status, age, and BMI are commonly linked to health risk and can materially impact insurance charges.
+Insurance pricing and underwriting depend on understanding which customer attributes are associated with higher expected medical costs. Common risk-related attributes such as **smoking status**, **age**, and **BMI** are frequently linked to cost differences and may materially impact insurance charges.
 
-This project analyzes how customer attributes relate to insurance charges and identifies high-cost risk segments that may require pricing adjustment, risk controls, or targeted interventions.
+This project uses **SQL-only analysis** to quantify charge differences across customer attributes and produce **segment-level risk tables** that can support pricing differentiation, risk monitoring, and intervention prioritization.
 
 ---
 
-## 2. Project Scope
-This SQL-based analysis examines the relationship between customer attributes and insurance charges using a public insurance dataset.
+## 2. Project Objectives
+This analysis answers three core questions:
 
-**Key questions explored:**
-- Which factors are most strongly associated with higher insurance charges (e.g., smoker vs non-smoker)?
-- How do charges vary across age and BMI levels?
-- Which customer segments represent the highest cost risk?
-
-The analysis is intentionally constrained to **SQL only**, reflecting analytics environments where SQL is the primary analysis tool.
+1. **Which factors show the strongest association with higher charges?**  
+2. **How do charges change across BMI levels and smoking status together?**  
+3. **Which customer segments represent the highest cost risk?**
 
 ---
 
@@ -41,76 +39,113 @@ https://www.kaggle.com/datasets/mirichoi0218/insurance
 - `region`
 - `charges`
 
-All analyses are conducted at the **customer level** after type validation and data quality checks.
+A cleaned, analysis-ready view was created to standardize types and derive:
+- `is_smoker` (0/1)
+- `age_bucket`
+- `bmi_bucket`
 
 ---
 
-## 4. Data Quality Checks
-Before analysis, the dataset is validated for common data quality issues:
-- Missing or invalid values (age, bmi, charges)
-- Out-of-range values (sanity thresholds)
-- Category consistency for text fields (sex, smoker, region)
-- Duplicate records (if present)
+## 4. Data Quality Notes
+Before analysis, the dataset was validated for:
+- Missing values across key fields
+- Out-of-range sanity checks (age, BMI, charges)
+- Category consistency (sex, smoker, region)
+- Duplicate detection
 
-The goal is to ensure that observed patterns are not driven by data errors or inconsistent formatting.
+The final analytical dataset contains **1,337 customer records** after removing exact duplicates.
 
 ---
 
-## 5. Analytical Approach
+## 5. Analytical Approach (SQL-Only)
 The workflow follows a structured SQL approach:
 
-1. Validate dataset structure and data types  
-2. Run data quality and distribution checks  
-3. Compute baseline KPIs for charges and population composition  
-4. Compare charges across key drivers (smoking status, BMI bucket, age bucket)  
-5. Produce risk segmentation tables for high-cost groups  
+1. Build an analysis-ready customer-level view (standardized fields + derived buckets)
+2. Run data quality checks and duplicate detection
+3. Compute baseline population and charge KPIs
+4. Compare charges by **smoking status** (avg, median, p90 + lift metrics)
+5. Evaluate interaction effects: **BMI bucket × smoking**
+6. Rank top high-cost segments by **median charges** (robust to skew)
 
-Both **average and median** statistics are used to reduce sensitivity to skewness.
-
----
-
-## 6. Outputs Produced (Final Tables)
-The final outputs are designed to be presentation-ready tables:
-
-- **Baseline Summary KPIs**
-  - total customers, average/median charges, percentiles (optional)
-
-- **Charges by Smoking Status**
-  - count, average/median charges, high-cost tail indicators
-
-- **Charges by Age Bucket**
-  - distribution of charges across age segments
-
-- **Charges by BMI Bucket**
-  - distribution of charges across BMI segments
-
-- **High-Risk Segment Table**
-  - smoker × BMI bucket × age bucket ranking by median charges / high-cost percentiles
+**Why median + p90?**  
+Insurance charges are typically right-skewed, so median and tail metrics help reduce distortion from extreme outliers.
 
 ---
 
-## 7. Business Implications
-- Smoking status and BMI are strong candidates for risk-based pricing differentiation.
-- High-cost segments can be prioritized for underwriting controls or prevention-focused programs.
-- Segment-level monitoring helps identify where cost risk concentrates.
+## 6. Final Outputs (Screenshot-Ready Tables)
+
+### 6.1 Baseline Summary KPIs
+A single-row KPI snapshot of the dataset composition and charge levels.
+
+![Baseline KPIs](screenshots/03_01_baseline_kpis.png)
+
+---
+
+### 6.2 Charges by Smoking Status (Core Driver)
+Charge comparison between smokers vs non-smokers, including:
+- average and median charges
+- p90 charges (high-cost tail)
+- lift vs overall and lift vs non-smoker baseline
+
+![Smoker vs Charges Summary](screenshots/04_01_smoker_vs_charges_summary.png)
+
+---
+
+### 6.3 Interaction: BMI Bucket × Smoking
+Segment-level view of how BMI categories behave differently for smokers vs non-smokers, including:
+- segment size and % of total customers
+- avg and median charges per group
+- smoker vs non-smoker lift inside each BMI bucket
+
+![BMI Bucket x Smoker Summary](screenshots/05_01_bmi_bucket_x_smoker_summary.png)
+
+---
+
+### 6.4 High-Cost Risk Segments (Top 10)
+Top-ranked customer segments by **median charges**, segmented by:
+- `age_bucket`
+- `bmi_bucket`
+- `is_smoker`
+
+Includes segment size (% of total) and p90 charges to reflect tail risk.
+
+![Top Risk Segments](screenshots/06_01_top_risk_segments.png)
+
+---
+
+## 7. Key Business Takeaways
+- **Smoking status** is the strongest cost separator in the dataset and drives a clear high-cost tail.
+- **BMI amplifies risk most strongly among smokers**, especially in overweight/obese categories.
+- High-cost risk is concentrated in **smoker segments**, and the top-ranked segments are dominated by:
+  - smoker + obese
+  - older age buckets
+
+These outputs can support:
+- risk-based pricing adjustments
+- underwriting rule refinement
+- prioritizing high-risk cohorts for prevention or care management programs
 
 ---
 
 ## 8. Limitations
-- Observational associations only; no causal inference.
-- Dataset lacks medical history and claims details, limiting explanatory depth.
-- Bucket thresholds are analyst-defined and may vary by insurer policy.
+- This is an observational dataset; results show **association**, not causation.
+- No medical history, claims breakdown, or chronic condition variables are available.
+- Bucket thresholds (age/BMI) are analyst-defined and may differ across insurers.
+- The dataset is relatively small; segment-level results should be interpreted with minimum-size filters.
 
 ---
 
 ## 9. How to Run
 1. Load the dataset into PostgreSQL as `raw.insurance`
 2. Open `queries.sql` in DBeaver
-3. Run queries from top to bottom (each section outputs 1–2 final tables)
+3. Run queries from top to bottom (each section outputs 1–2 tables)
 
 ---
 
-## 10. Tools & SQL Features
-- PostgreSQL  
-- DBeaver Ultimate  
-- SQL: CTEs, aggregations, CASE bucketing, window functions, `percentile_cont()` for median
+## 10. SQL Features Used
+- CTEs (`WITH`)
+- Aggregations (`COUNT`, `AVG`)
+- Robust statistics (`percentile_cont()` for median and p90)
+- Bucketing (`CASE WHEN`)
+- Window functions (`DENSE_RANK`)
+- Safe math (`NULLIF`) for lift calculations
