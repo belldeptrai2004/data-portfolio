@@ -1,0 +1,154 @@
+---
+title: "Statistical Analysis of HR Workforce Data"
+author: |
+  Pham Minh Khoi (22145599)
+  Gia Thúy
+date: "2026-03-13"
+output:
+  pdf_document:
+    toc: true
+    number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+
+options(scipen = 999)
+```
+
+# Load required packages:
+```{r}
+library(tidyverse)
+```
+
+
+
+# Question 1 : Exporatory Data Analysis
+
+## Before analysis
+
+The purpose of this question is to explore the structure and main characteristics of the HR dataset before conducting formal statistical testing. 
+
+This dataset contains employee-level information such as age, gender, department, job level, salary, years of experience, performance score, and satisfaction score. Before performing any deeper analysis, it is necessary to understand the dimensions of the dataset, identify the variable types, summarize numeric variables, and visualize distributions and relationships.
+
+Based on the dataset description, I expect salary and years of experience to show some positive association, and I also expect possible variation in performance and salary across job levels. Visual exploration will help detect outliers, skewness, and any unusual observations that may affect later inference.
+
+## Analysis
+
+### (a) Load the dataset, report dimensions, variable types, and structure
+
+```{r}
+# Load the HR dataset from the CSV file
+hr <- read.csv("data/group5.csv")
+
+# Report the dimensions of the dataset
+dim(hr)
+
+# Examine the overall structure and variable types
+str(hr)
+```
+
+The dataset contains 172 observations and 18 variables. This means the HR dataset includes information for 172 employees across 18 different attributes.
+
+Based on the structure output, the dataset contains a mix of variable types, including character (`chr`), integer (`int`), and numeric (`num`) variables. The character variables include EmployeeID, Department, Gender, JobLevel, EducationLevel, and OfficeLocation. These represent categorical or identifier information. The integer and numeric variables include Age, YearsOfExperience, Salary, PerformanceScore, SatisfactionScore, OvertimeHours, TrainingHours, ProjectsCompleted, TeamSize, RemoteWorkDays, AttendanceRate, and PromotionCount. These represent measurable employee and workplace characteristics.
+
+Overall, the dataset is structured as a data frame with employee-level HR information covering demographics, job-related factors, compensation, performance, and workplace behavior. This structure is suitable for exploratory data analysis and later statistical testing.
+
+
+### (b) Compute summary statistics for all numeric variables and identify outliers
+
+```{r}
+# Select all numeric variables
+numeric_vars <- hr[, sapply(hr, is.numeric)]
+
+# Compute summary statistics for all numeric variables
+summary_stats <- data.frame(
+  Mean = sapply(numeric_vars, mean),
+  Median = sapply(numeric_vars, median),
+  SD = sapply(numeric_vars, sd),
+  Q1 = sapply(numeric_vars, quantile, 0.25),
+  Q3 = sapply(numeric_vars, quantile, 0.75)
+)
+
+summary_stats
+
+# Create boxplots for each numeric variable to detect unusual observations or outliers
+
+## Create a boxplot for Age
+boxplot(hr$Age, main = "Boxplot of Age")
+
+## Create a boxplot for Years of Experience
+boxplot(hr$YearsOfExperience, main = "Boxplot of Years of Experience")
+
+## Create a boxplot for Salary
+boxplot(hr$Salary, main = "Boxplot of Salary")
+
+## Create a boxplot for Performance Score
+boxplot(hr$PerformanceScore, main = "Boxplot of Performance Score")
+
+## Create a boxplot for Satisfaction Score
+boxplot(hr$SatisfactionScore, main = "Boxplot of Satisfaction Score")
+
+## Create a boxplot for Overtime Hours
+boxplot(hr$OvertimeHours, main = "Boxplot of Overtime Hours")
+
+## Create a boxplot for Training Hours
+boxplot(hr$TrainingHours, main = "Boxplot of Training Hours")
+
+## Create a boxplot for Projects Completed
+boxplot(hr$ProjectsCompleted, main = "Boxplot of Projects Completed")
+
+## Create a boxplot for Team Size
+boxplot(hr$TeamSize, main = "Boxplot of Team Size")
+
+## Create a boxplot for Remote Work Days
+boxplot(hr$RemoteWorkDays, main = "Boxplot of Remote Work Days")
+
+## Create a boxplot for Attendance Rate
+boxplot(hr$AttendanceRate, main = "Boxplot of Attendance Rate")
+
+## Create a boxplot for Promotion Count
+boxplot(hr$PromotionCount, main = "Boxplot of Promotion Count")
+```
+
+The summary statistics show that the numeric variables differ considerably in both central tendency and dispersion. Age has a mean of 33.77 and a median of 33, indicating that the age distribution is fairly centred around the early thirties. Years of Experience has a mean of 9.95 and a median of 9, suggesting a moderate level of employee experience overall. Performance Score has a mean of 3.05 and a median of 3, while Satisfaction Score has a mean of 5.73 and a median of 6, indicating that these two variables are relatively concentrated around their middle values.
+
+Salary shows the greatest variability among all numeric variables. Its mean is 94,362.06, while its median is 81,228.50, and its standard deviation is 52,568.11. The large difference between the mean and median suggests that salary is positively skewed, meaning that a smaller number of employees earn substantially more than the majority. This interpretation is also supported by the quartiles, where Q1 is 58,052.75 and Q3 is 110,659.50, showing a wide spread in the middle 50% of salary values.
+
+Other variables such as Training Hours, Projects Completed, Team Size, Remote Work Days, Attendance Rate, and Promotion Count appear to have smaller and more stable ranges in comparison. For example, Attendance Rate is tightly distributed, with a mean of 0.929, a median of 0.928, and a relatively small standard deviation of 0.043, which indicates low variation across employees. Promotion Count also appears moderately distributed, with a mean of 2.62 and a median of 3.
+
+The boxplot results show that Salary is the clearest variable with unusual observations or potential outliers. Several points appear above the upper whisker, indicating that some employees receive salaries substantially higher than the rest of the workforce. These values may represent senior or executive employees with much higher compensation. In contrast, the other numeric variables do not show strong or obvious outlier patterns based on the visualisations. Overall, the results suggest that salary is the most dispersed variable in the dataset and is the main variable affected by extreme values.
+
+### (c) Generate histograms and examine correlations
+
+```{r}
+# Create histograms for key numeric variables
+hist(hr$Salary, main = "Histogram of Salary", xlab = "Salary")
+hist(hr$YearsOfExperience, main = "Histogram of Years of Experience", xlab = "Years of Experience")
+hist(hr$PerformanceScore, main = "Histogram of Performance Score", xlab = "Performance Score")
+hist(hr$SatisfactionScore, main = "Histogram of Satisfaction Score", xlab = "Satisfaction Score")
+
+# Examine correlations between numeric variables
+cor_matrix <- cor(numeric_vars)
+
+cor_matrix
+```
+[Interpretation]
+
+### (d) Create additional plots to reveal patterns or relationships
+
+[Code]
+[Interpretation]
+
+### (e) Synthesize the key characteristics of the workforce
+
+[Viết summary tổng hợp, không cần nhiều code]
+
+## Error / Warning
+
+[Viết lỗi gặp phải / cách xử lý / note về dataset]
+
