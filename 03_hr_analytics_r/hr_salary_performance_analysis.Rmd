@@ -20,22 +20,15 @@ knitr::opts_chunk$set(
 options(scipen = 999)
 ```
 
-# Load required packages:
-```{r}
-library(tidyverse)
-```
-
-
-
-# Question 1 : Exporatory Data Analysis
+# Question 1: Exploratory Data Analysis
 
 ## Before analysis
 
-The purpose of this question is to explore the structure and main characteristics of the HR dataset before conducting formal statistical testing. 
+The purpose of this question is to explore the structure and main characteristics of the HR dataset before conducting formal statistical testing. This initial exploration is important because it helps identify the types of variables in the dataset, understand the distribution of key numeric measures, detect unusual observations, and reveal possible relationships between workforce characteristics.
 
-This dataset contains employee-level information such as age, gender, department, job level, salary, years of experience, performance score, and satisfaction score. Before performing any deeper analysis, it is necessary to understand the dimensions of the dataset, identify the variable types, summarize numeric variables, and visualize distributions and relationships.
+To address this question, the analysis will first load the dataset and examine its dimensions, variable types, and overall structure. It will then compute summary statistics for numeric variables and use visualisations to identify possible outliers. After that, histograms and correlation analysis will be used to examine distributions and relationships among key variables. Additional plots will then be created to highlight important patterns more clearly. Finally, the findings will be synthesised into a concise summary of the main characteristics of the workforce.
 
-Based on the dataset description, I expect salary and years of experience to show some positive association, and I also expect possible variation in performance and salary across job levels. Visual exploration will help detect outliers, skewness, and any unusual observations that may affect later inference.
+Based on the dataset description, I expect salary and years of experience to show a positive association, and I also expect salary to vary across job levels. I also anticipate that some variables, especially salary, may display skewness or outliers. Visual exploration will help confirm these expectations and provide a clearer understanding of the workforce before later inference is conducted.
 
 ## Analysis
 
@@ -132,23 +125,249 @@ hist(hr$YearsOfExperience, main = "Histogram of Years of Experience", xlab = "Ye
 hist(hr$PerformanceScore, main = "Histogram of Performance Score", xlab = "Performance Score")
 hist(hr$SatisfactionScore, main = "Histogram of Satisfaction Score", xlab = "Satisfaction Score")
 
-# Examine correlations between numeric variables
+# Examine correlations between all numeric variables
 cor_matrix <- cor(numeric_vars)
 
-cor_matrix
+# Display selected key correlations for easier interpretation
+round(cor_matrix[, "Salary"], 2)
+round(cor_matrix[, "YearsOfExperience"], 2)
+round(cor_matrix[, "PerformanceScore"], 2)
+round(cor_matrix[, "SatisfactionScore"], 2)
 ```
-[Interpretation]
+
+Histograms were created for four key numeric variables: Salary, YearsOfExperience, PerformanceScore, and SatisfactionScore. These variables were selected because they are central to understanding employee compensation, experience, performance, and overall satisfaction within the workforce.
+
+The histogram of Salary shows a positively skewed distribution. Most employees are concentrated in the lower to middle salary ranges, while a smaller number of employees appear in the much higher salary ranges. This pattern is consistent with the earlier boxplot, which indicated several high-value salary outliers.
+
+The histogram of YearsOfExperience also appears positively skewed. Most employees have relatively low to moderate levels of experience, while fewer employees fall into the highest experience ranges. This suggests that the workforce contains more early- to mid-career employees than highly experienced employees.
+
+The histogram of PerformanceScore shows that the values are distributed across the full score range from 1 to 5, although the distribution is not perfectly even. The scores appear fairly spread out, with no strong concentration at only one value. This suggests some variation in employee performance across the dataset.
+
+The histogram of SatisfactionScore shows a broad spread across the scale from 1 to 10, with a somewhat higher concentration in the mid-to-upper range. This may suggest that employee satisfaction is generally moderate to moderately high, although there is still variation across individuals.
+
+The correlation analysis was conducted across all numeric variables, with particular attention given to the selected key variables. Salary has a strong positive correlation with Age (r = 0.81) and YearsOfExperience (r = 0.82), indicating that older and more experienced employees tend to earn higher salaries. Salary also has a moderately strong positive correlation with PromotionCount (r = 0.69), suggesting that employees with more promotions tend to have higher compensation.
+
+YearsOfExperience has an extremely strong positive correlation with Age (r = 0.98) and PromotionCount (r = 0.94). This indicates that employees with more experience are typically older and tend to have received more promotions. In contrast, YearsOfExperience has very weak correlations with PerformanceScore, SatisfactionScore, ProjectsCompleted, TeamSize, and RemoteWorkDays, suggesting little evidence of strong linear relationships with those variables.
+
+PerformanceScore shows only weak correlations with the other numeric variables. Its correlations with Age (r = 0.12), YearsOfExperience (r = 0.13), Salary (r = 0.11), and PromotionCount (r = 0.11) are all small, indicating that job performance in this dataset does not appear to be strongly linearly related to these characteristics.
+
+SatisfactionScore also shows very weak correlations with most other variables. Its correlations with Age (r = 0.00), YearsOfExperience (r = 0.00), Salary (r = 0.09), AttendanceRate (r = 0.08), and PromotionCount (r = 0.00) are all close to zero. This suggests that employee satisfaction may be influenced by factors not captured strongly through the numeric variables in this dataset.
+
+Overall, the histogram results show that Salary and YearsOfExperience are positively skewed, while PerformanceScore and SatisfactionScore are more broadly distributed across their scales. The correlation analysis indicates that compensation and promotion are strongly associated with age and experience, while performance and satisfaction have only weak linear relationships with the other numeric variables.
 
 ### (d) Create additional plots to reveal patterns or relationships
 
-[Code]
-[Interpretation]
+```{r}
+# Create a scatter plot for Salary and Years of Experience
+plot(hr$YearsOfExperience, hr$Salary,
+     main = "Salary vs Years of Experience",
+     xlab = "Years of Experience",
+     ylab = "Salary")
+
+# Create a scatter plot for Promotion Count and Years of Experience
+plot(hr$YearsOfExperience, hr$PromotionCount,
+     main = "Promotion Count vs Years of Experience",
+     xlab = "Years of Experience",
+     ylab = "Promotion Count")
+
+# Create a boxplot for Salary by Job Level
+boxplot(Salary ~ JobLevel, data = hr,
+        main = "Salary by Job Level",
+        xlab = "Job Level",
+        ylab = "Salary")
+```
+
+The additional plots were selected based on the earlier findings from the histogram and correlation analysis in order to display the most meaningful patterns more clearly.
+
+The scatter plot of Salary versus YearsOfExperience shows a clear positive relationship. In general, employees with more years of experience tend to earn higher salaries. Although there is some variation at similar experience levels, the overall upward trend suggests that experience is an important factor associated with compensation.
+
+The scatter plot of PromotionCount versus YearsOfExperience also shows a strong positive pattern. Employees with greater experience tend to have higher promotion counts. The relationship appears especially clear because promotion count generally increases as years of experience rise, which is consistent with the strong positive correlation identified earlier.
+
+The boxplot of Salary by JobLevel reveals clear differences in salary distribution across job levels. Entry-level employees have the lowest salaries, followed by Mid-level and Senior employees, while Executive employees have the highest salary range. This pattern suggests that job level is strongly associated with compensation and that salary tends to increase with organisational seniority.
+
+Overall, these plots confirm that experience, promotion history, and job level are closely related to salary and career progression in this workforce. They also provide visual evidence that compensation in this dataset is structured in a way that reflects both employee experience and organisational level.
 
 ### (e) Synthesize the key characteristics of the workforce
 
-[Viết summary tổng hợp, không cần nhiều code]
+Overall, the HR dataset describes a workforce of 172 employees across a range of demographic, compensation, performance, and workplace-related variables. The exploratory analysis shows that Salary is the most dispersed variable in the dataset and contains several high-value outliers, while YearsOfExperience also displays a positively skewed distribution. In contrast, PerformanceScore and SatisfactionScore are more broadly distributed across their scales and do not show strong outlier patterns.
+
+The analysis further suggests that compensation in this workforce is closely linked to employee experience, age, promotion history, and organisational seniority. Salary has strong positive associations with YearsOfExperience and Age, and also increases with PromotionCount. PromotionCount itself rises clearly with YearsOfExperience, indicating a pattern of career progression over time. In addition, salary differs substantially across JobLevel, with Entry-level employees earning the least and Executive employees earning the most.
+
+Overall, the key characteristics of this workforce point to an organisation in which pay and career advancement are strongly associated with experience and seniority, while employee performance and satisfaction appear to have much weaker linear relationships with the other numeric variables.
 
 ## Error / Warning
 
-[Viết lỗi gặp phải / cách xử lý / note về dataset]
+During the analysis, one issue encountered was that a combined boxplot of all numeric variables was difficult to interpret because Salary had a much larger scale than the other variables. This was addressed by creating separate boxplots for each numeric variable. 
 
+Another issue was that the full correlation matrix was difficult to read in its raw form, so selected key correlations were displayed separately and rounded for easier interpretation. No major coding errors were encountered after the dataset was successfully loaded.
+
+# Question 2: Comparing Salary Across Job Levels
+
+## Before analysis
+
+The purpose of Question 2 is to examine whether salary differs significantly between two job level groups in the HR dataset. Since job level reflects organisational seniority and responsibility, comparing salaries across levels helps assess whether the company’s compensation structure is aligned with rank and career progression.
+
+To address this question, the analysis will first select two job level groups for comparison and state the corresponding statistical hypotheses. Next, the assumptions required for comparing two independent groups will be evaluated in order to determine the most appropriate statistical test. After that, the analysis will estimate the mean difference in salary using an 86% confidence interval and measure the practical importance of the difference using effect size. Visualisations will then be used to compare the salary distributions of the two groups more clearly. Finally, the results will be interpreted at the significance level of α=0.03, with discussion of what the findings imply for compensation strategy in the organisation.
+
+Based on the exploratory findings from Question 1, I expect salary to increase with organisational seniority. Therefore, I expect the higher job level group to have a greater average salary than the lower job level group. I also expect some variation in salary spread across groups, especially if one group includes more senior employees with a wider compensation range. Overall, I anticipate that the comparison will show a statistically meaningful difference in salary between the selected job levels.
+
+## Analysis
+
+### (a) Selection of job level groups and statistical hypotheses
+
+```{r}
+# Count the number of employees in each job level group
+table(hr$JobLevel)
+
+# Create a dataset containing only Entry and Mid employees
+q2_data <- subset(hr, JobLevel == "Entry" | JobLevel == "Mid")
+
+# Count the number of observations in the selected groups
+table(q2_data$JobLevel)
+
+# Calculate the mean salary for Entry employees
+mean(q2_data$Salary[q2_data$JobLevel == "Entry"])
+
+# Calculate the mean salary for Mid employees
+mean(q2_data$Salary[q2_data$JobLevel == "Mid"])
+
+# Calculate the standard deviation of salary for Entry employees
+sd(q2_data$Salary[q2_data$JobLevel == "Entry"])
+
+# Calculate the standard deviation of salary for Mid employees
+sd(q2_data$Salary[q2_data$JobLevel == "Mid"])
+```
+
+For this comparison, the Entry and Mid job level groups were selected. These two groups have relatively large and balanced sample sizes, with 69 employees in Entry and 63 employees in Mid, which makes the comparison statistically more reliable than using a much smaller group such as Executive.
+
+The preliminary salary statistics already suggest a meaningful difference between the two groups. The mean salary of Entry-level employees is 55,839.58, whereas the mean salary of Mid-level employees is 88,383.97. This indicates that Mid-level employees earn, on average, about 32,544 more than Entry-level employees. In addition, the standard deviation is 10,154.83 for the Entry group and 16,253.81 for the Mid group, showing that salary varies more widely among Mid-level employees.
+
+This comparison is also meaningful from a workforce perspective because Entry and Mid employees represent two consecutive stages of organisational seniority. Comparing these groups helps evaluate whether salary increases as employees move from a junior to an intermediate position within the organisation.
+
+The statistical hypotheses are as follows:
+
+H0: The mean salary of Entry-level employees is equal to the mean salary of Mid-level employees.
+
+H1: The mean salary of Entry-level employees is different from the mean salary of Mid-level employees.
+
+Although the descriptive statistics already suggest a substantial salary gap, a formal statistical test is still required to determine whether this observed difference is statistically significant.
+
+### (b) Evaluation of assumptions and execution of the appropriate test
+
+```{r}
+# Create separate salary vectors for the Entry and Mid groups
+entry_salary <- q2_data$Salary[q2_data$JobLevel == "Entry"]
+mid_salary <- q2_data$Salary[q2_data$JobLevel == "Mid"]
+
+# Draw boxplots to visually examine the salary distribution in each group
+boxplot(entry_salary, main = "Boxplot of Entry Salary", ylab = "Salary")
+boxplot(mid_salary, main = "Boxplot of Mid Salary", ylab = "Salary")
+
+# Draw histograms to examine the shape of the salary distribution in each group
+hist(entry_salary, main = "Histogram of Entry Salary", xlab = "Salary")
+hist(mid_salary, main = "Histogram of Mid Salary", xlab = "Salary")
+
+# Draw Q-Q plots to assess whether each group is approximately normally distributed
+qqnorm(entry_salary, main = "Q-Q Plot of Entry Salary")
+qqline(entry_salary)
+
+qqnorm(mid_salary, main = "Q-Q Plot of Mid Salary")
+qqline(mid_salary)
+
+# Perform the Shapiro-Wilk normality test for the Entry group
+shapiro.test(entry_salary)
+
+# Perform the Shapiro-Wilk normality test for the Mid group
+shapiro.test(mid_salary)
+
+# Test whether the variances of the two groups are equal
+var.test(entry_salary, mid_salary)
+
+# Perform Welch's two-sample t-test to compare mean salary between the two groups
+t.test(entry_salary, mid_salary, var.equal = FALSE)
+```
+
+The assumptions for comparing two independent groups were evaluated before conducting the hypothesis test.
+
+First, the independence assumption is reasonable because each observation represents a different employee, and each employee belongs to only one job level group. Therefore, the Entry and Mid groups can be treated as independent samples. In addition, Salary is a numeric variable, so it is suitable for comparing group means.
+
+The boxplots and histograms show that the salary distributions of both groups are fairly concentrated around their centres, although each group contains a small number of unusual observations. The Q-Q plots also show some deviation from the reference line at the tails, especially for the Mid group, which suggests that the salary distributions are not perfectly normal. However, the overall patterns are still reasonably close to normal, particularly in the middle of the distributions.
+
+The Shapiro–Wilk tests indicate that both the Entry group (p = 0.3502) and the Mid group (p = 0.4028) have p-values greater than 0.05, suggesting no significant departure from normality. Therefore, there is no strong evidence against the normality assumption for either group. In addition, given the moderately large sample sizes, the t-test is appropriate and should be robust to minor deviations from normality.
+
+The equality of variance assumption, however, is not supported. The variance test produced an F statistic of 0.3903 with a p-value of 0.000186, which indicates that the salary variances of the two groups are significantly different. This is consistent with the earlier descriptive statistics, where the Mid group showed a noticeably larger standard deviation than the Entry group.
+
+Because the two groups are independent, the outcome variable is numeric, the normality assumption is reasonably satisfied, and the group variances are unequal, Welch’s two-sample t-test was selected as the appropriate test.
+
+The test results show a t-statistic of -13.646, degrees of freedom of 102.23, and a p-value less than 0.001. This provides very strong evidence that the mean salary differs between Entry-level and Mid-level employees.
+
+Overall, the assumptions are sufficiently satisfied for using Welch’s two-sample t-test, and the results confirm that the difference in mean salary between Entry and Mid employees is statistically significant.
+
+### (c) 86% confidence interval for the mean difference and effect size magnitude
+
+```{r}
+# Construct an 86% confidence interval for the mean difference in salary
+t_test_86 <- t.test(entry_salary, mid_salary, var.equal = FALSE, conf.level = 0.86)
+
+# Display the 86% confidence interval and estimated group means
+t_test_86
+
+# Calculate the pooled standard deviation for the two groups
+pooled_sd <- sqrt(((length(entry_salary) - 1) * sd(entry_salary)^2 +
+                   (length(mid_salary) - 1) * sd(mid_salary)^2) /
+                  (length(entry_salary) + length(mid_salary) - 2))
+
+# Calculate Cohen's d for the difference in mean salary
+cohens_d <- (mean(entry_salary) - mean(mid_salary)) / pooled_sd
+
+# Display Cohen's d
+cohens_d
+```
+
+An 86% confidence interval was constructed for the mean difference in salary between the Entry and Mid groups. When the difference is calculated as Entry minus Mid, the interval is (-36,091.63, -28,997.15).
+
+Because the entire interval is negative, it indicates that the mean salary of Entry-level employees is lower than that of Mid-level employees. In practical terms, this suggests that Mid-level employees earn, on average, about 28,997 to 36,092 more than Entry-level employees. Since the interval does not include zero, it supports the conclusion that there is a real difference in mean salary between the two job levels.
+
+The calculated Cohen’s d is -2.426. The negative sign only reflects the direction of the comparison, because the mean salary of the Entry group is lower than that of the Mid group. In terms of magnitude, the absolute value of 2.426 indicates a very large effect size. This means the salary difference is not only statistically significant, but also substantial in practical terms.
+
+Overall, both the confidence interval and the effect size show that the gap in salary between Entry-level and Mid-level employees is large and meaningful.
+
+### (d) Visual comparison of salary between the two groups
+
+```{r}
+# Create a boxplot to compare salary between Entry and Mid groups
+boxplot(Salary ~ JobLevel, data = q2_data,
+        main = "Salary by Job Level",
+        xlab = "Job Level",
+        ylab = "Salary")
+```
+
+The boxplot provides a clear visual comparison of salary between the Entry and Mid job level groups. It shows that the Mid group has a noticeably higher median salary than the Entry group, which is consistent with the earlier descriptive and inferential results.
+
+The plot also indicates that the Mid group has a wider spread of salary values, as shown by its larger box and longer whiskers. This suggests greater variability in salary among Mid-level employees. In contrast, the Entry group has a more concentrated salary distribution, indicating that Entry-level salaries are relatively more consistent.
+
+A small number of outliers are visible in both groups. However, these unusual observations do not change the overall pattern shown in the plot. The salary distribution of the Mid group remains clearly higher than that of the Entry group.
+
+Overall, the boxplot supports the earlier statistical findings by showing a clear upward shift in salary from Entry-level to Mid-level employees, along with greater variation in the Mid group.
+
+### (e) Conclusion at alpha = 0.03 and implications for compensation strategy
+
+At the 0.03 significance level, the null hypothesis that the mean salary of Entry-level employees is equal to the mean salary of Mid-level employees is rejected. This provides strong statistical evidence that the mean salary differs between Entry-level and Mid-level employees.
+
+The results also show that the difference is substantial. Mid-level employees earn, on average, about 32,544 more than Entry-level employees, and the 86% confidence interval suggests that the true mean difference is likely between about 28,997 and 36,092. The very large effect size further indicates that this gap is meaningful in practical terms.
+
+From a compensation perspective, these findings suggest that salary in this organisation is clearly differentiated by job level. The results are consistent with a pay structure in which employees at higher job levels receive higher compensation. In addition, the wider spread of salaries in the Mid group suggests greater variation in pay within that level.
+
+## Error / Warning
+
+Several issues required careful attention during the analysis in Question 2.
+
+First, the choice of comparison groups needed to be considered carefully. Although comparing Entry and Executive employees would likely produce a very large salary gap, the Executive group had a much smaller sample size. To make the comparison more statistically stable and easier to justify, the Entry and Mid groups were selected instead because they had larger and more balanced sample sizes.
+
+Second, the salary distributions were not perfectly normal, particularly at the tails, as shown in the Q-Q plots and the presence of a small number of outliers in the boxplots. This created some uncertainty about whether a standard two-sample t-test would be fully appropriate. However, the Shapiro–Wilk tests did not indicate significant departures from normality, and the sample sizes for both groups were moderately large. For this reason, the normality assumption was treated as reasonably satisfied.
+
+Third, the equal variance assumption was not met. This was an important issue because it meant that the standard equal-variance two-sample t-test was not appropriate. This issue was addressed by using Welch’s two-sample t-test, which is more suitable when the group variances are unequal.
+
+Another point that required attention was the confidence interval level in part (c). The question specifically required an 86% confidence interval rather than the more common 95% level. This meant the confidence level had to be set manually in the code to ensure that the interval matched the requirement of the assignment.
+
+Finally, the effect size measure needed to be interpreted carefully. Cohen’s d was used as a standardised measure of effect size because it is commonly reported in introductory statistical analysis. However, since the group variances were unequal, the effect size was interpreted cautiously and used mainly to describe the magnitude of the difference rather than as a more advanced variance-adjusted measure.
