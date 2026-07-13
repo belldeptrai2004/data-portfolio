@@ -1,0 +1,496 @@
+---
+title: "Feature Engineering"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+geometry: margin=1in
+---
+
+```{r, warning=FALSE, message=FALSE}
+# ============================================================
+# 03_feature_engineering.R
+# Airline Service Performance Visual Analytics
+# ============================================================
+
+
+# 1. LOAD PACKAGE ---------------------------------------------------------
+
+library(dplyr)
+
+
+# 2. FILE PATHS -----------------------------------------------------------
+
+input_path <- "D:/data-portfolio/08_airline_service_performance_visual_analytics/data/processed/airline_performance_clean.csv"
+
+output_path <- "D:/data-portfolio/08_airline_service_performance_visual_analytics/data/processed/airline_performance_analysis.csv"
+
+
+# 3. READ CLEAN DATA ------------------------------------------------------
+
+clean_data <- read.csv(
+  input_path,
+  stringsAsFactors = FALSE,
+  na.strings = c("", "NA")
+)
+
+cat("\n=== CLEAN DATA IMPORTED ===\n")
+
+cat(
+  "Number of rows:",
+  nrow(clean_data),
+  "\n"
+)
+
+cat(
+  "Number of columns:",
+  ncol(clean_data),
+  "\n"
+)
+
+
+# 4. RESTORE DATE FORMAT --------------------------------------------------
+
+clean_data$Month <- as.Date(
+  clean_data$Month
+)
+
+
+cat("\n=== DATE CHECK ===\n")
+
+cat(
+  "Date range:",
+  as.character(min(clean_data$Month)),
+  "to",
+  as.character(max(clean_data$Month)),
+  "\n"
+)
+
+
+# 5. CREATE TIME VARIABLES ------------------------------------------------
+
+analysis_data <- clean_data %>%
+  mutate(
+    Year = as.integer(
+      format(Month, "%Y")
+    ),
+    
+    Month_Number = as.integer(
+      format(Month, "%m")
+    ),
+    
+    Month_Name = month.abb[
+      Month_Number
+    ]
+  )
+
+
+cat("\n=== TIME VARIABLES ===\n")
+
+cat(
+  "Number of years:",
+  n_distinct(analysis_data$Year),
+  "\n"
+)
+
+cat(
+  "First year:",
+  min(analysis_data$Year),
+  "\n"
+)
+
+cat(
+  "Last year:",
+  max(analysis_data$Year),
+  "\n"
+)
+
+cat(
+  "Month numbers:",
+  paste(
+    sort(
+      unique(analysis_data$Month_Number)
+    ),
+    collapse = ", "
+  ),
+  "\n"
+)
+
+cat(
+  "Month names:",
+  paste(
+    month.abb,
+    collapse = ", "
+  ),
+  "\n"
+)
+
+
+# 6. CREATE ANALYSIS LEVEL ------------------------------------------------
+
+analysis_data <- analysis_data %>%
+  mutate(
+    Analysis_Level = case_when(
+      
+      Route == "All Ports-All Ports" &
+        Airline == "All Airlines" ~
+        "Network",
+      
+      Route == "All Ports-All Ports" &
+        Airline != "All Airlines" ~
+        "Airline",
+      
+      Route != "All Ports-All Ports" &
+        Airline == "All Airlines" ~
+        "Route",
+      
+      TRUE ~
+        "Airline Route"
+    )
+  )
+
+
+cat("\n=== ANALYSIS LEVELS ===\n")
+
+analysis_level_summary <- analysis_data %>%
+  count(
+    Analysis_Level
+  )
+
+print(
+  analysis_level_summary
+)
+
+
+cat(
+  "Total rows across analysis levels:",
+  sum(analysis_level_summary$n),
+  "\n"
+)
+
+
+# 7. CREATE THE FOUR ANALYTICAL LAYERS ------------------------------------
+
+network_month <- analysis_data %>%
+  filter(
+    Analysis_Level == "Network"
+  )
+
+
+airline_month <- analysis_data %>%
+  filter(
+    Analysis_Level == "Airline"
+  )
+
+
+route_month <- analysis_data %>%
+  filter(
+    Analysis_Level == "Route"
+  )
+
+
+airline_route_month <- analysis_data %>%
+  filter(
+    Analysis_Level == "Airline Route"
+  )
+
+
+cat("\n=== ANALYTICAL LAYER ROW COUNTS ===\n")
+
+cat(
+  "Network-month rows:",
+  nrow(network_month),
+  "\n"
+)
+
+cat(
+  "Airline-month rows:",
+  nrow(airline_month),
+  "\n"
+)
+
+cat(
+  "Route-month rows:",
+  nrow(route_month),
+  "\n"
+)
+
+cat(
+  "Airline-route-month rows:",
+  nrow(airline_route_month),
+  "\n"
+)
+
+
+# 8. CHECK NETWORK-MONTH STRUCTURE ----------------------------------------
+
+network_month_check <- network_month %>%
+  count(
+    Month
+  ) %>%
+  filter(
+    n != 1
+  )
+
+
+cat("\n=== NETWORK-MONTH CHECK ===\n")
+
+cat(
+  "Network months:",
+  n_distinct(network_month$Month),
+  "\n"
+)
+
+cat(
+  "Months without exactly one network record:",
+  nrow(network_month_check),
+  "\n"
+)
+
+
+# 9. RECALCULATE ROW-LEVEL PERFORMANCE -----------------------------------
+
+metric_check <- analysis_data %>%
+  mutate(
+    
+    Calculated_Departure_OTP = ifelse(
+      Sectors_Flown > 0,
+      Departures_On_Time /
+        Sectors_Flown * 100,
+      NA
+    ),
+    
+    Calculated_Arrival_OTP = ifelse(
+      Sectors_Flown > 0,
+      Arrivals_On_Time /
+        Sectors_Flown * 100,
+      NA
+    ),
+    
+    Calculated_Cancellation_Rate = ifelse(
+      Sectors_Scheduled > 0,
+      Cancellations /
+        Sectors_Scheduled * 100,
+      NA
+    )
+  )
+
+
+# 10. COMPARE CALCULATED AND PUBLISHED PERCENTAGES ------------------------
+
+metric_check <- metric_check %>%
+  mutate(
+    
+    Departure_OTP_Difference =
+      Calculated_Departure_OTP -
+      OnTime_Departures_Percent,
+    
+    Arrival_OTP_Difference =
+      Calculated_Arrival_OTP -
+      OnTime_Arrivals_Percent,
+    
+    Cancellation_Rate_Difference =
+      Calculated_Cancellation_Rate -
+      Cancellations_Percent
+  )
+
+
+cat("\n=== PERFORMANCE METRIC VALIDATION ===\n")
+
+cat(
+  "Maximum Departure OTP difference:",
+  max(
+    abs(metric_check$Departure_OTP_Difference),
+    na.rm = TRUE
+  ),
+  "\n"
+)
+
+cat(
+  "Maximum Arrival OTP difference:",
+  max(
+    abs(metric_check$Arrival_OTP_Difference),
+    na.rm = TRUE
+  ),
+  "\n"
+)
+
+cat(
+  "Maximum Cancellation Rate difference:",
+  max(
+    abs(metric_check$Cancellation_Rate_Difference),
+    na.rm = TRUE
+  ),
+  "\n"
+)
+
+
+# 11. DEMONSTRATE WEIGHTED AGGREGATION -----------------------------------
+
+network_metric_example <- network_month %>%
+  summarise(
+    
+    Total_Sectors_Flown =
+      sum(Sectors_Flown),
+    
+    Total_Sectors_Scheduled =
+      sum(Sectors_Scheduled),
+    
+    Total_Departures_On_Time =
+      sum(Departures_On_Time),
+    
+    Total_Arrivals_On_Time =
+      sum(Arrivals_On_Time),
+    
+    Total_Cancellations =
+      sum(Cancellations),
+    
+    Weighted_Departure_OTP =
+      sum(Departures_On_Time) /
+      sum(Sectors_Flown) * 100,
+    
+    Weighted_Arrival_OTP =
+      sum(Arrivals_On_Time) /
+      sum(Sectors_Flown) * 100,
+    
+    Weighted_Cancellation_Rate =
+      sum(Cancellations) /
+      sum(Sectors_Scheduled) * 100,
+    
+    Simple_Mean_Departure_OTP =
+      mean(
+        OnTime_Departures_Percent,
+        na.rm = TRUE
+      ),
+    
+    Simple_Mean_Arrival_OTP =
+      mean(
+        OnTime_Arrivals_Percent,
+        na.rm = TRUE
+      ),
+    
+    Simple_Mean_Cancellation_Rate =
+      mean(
+        Cancellations_Percent,
+        na.rm = TRUE
+      )
+  )
+
+
+cat("\n=== WEIGHTED AGGREGATION EXAMPLE ===\n")
+
+print(
+  network_metric_example
+)
+
+
+# 12. CHECK MISSING ANALYSIS LEVELS ---------------------------------------
+
+missing_analysis_level <- analysis_data %>%
+  filter(
+    is.na(Analysis_Level)
+  )
+
+
+cat("\n=== ANALYSIS LEVEL VALIDATION ===\n")
+
+cat(
+  "Rows with missing analysis level:",
+  nrow(missing_analysis_level),
+  "\n"
+)
+
+
+# 13. SELECT FINAL ANALYTICAL VARIABLES -----------------------------------
+
+analysis_data <- analysis_data %>%
+  select(
+    Route,
+    Departing_Port,
+    Arriving_Port,
+    Airline,
+    Month,
+    Year,
+    Month_Number,
+    Month_Name,
+    Analysis_Level,
+    Sectors_Scheduled,
+    Sectors_Flown,
+    Cancellations,
+    Departures_On_Time,
+    Arrivals_On_Time,
+    Departures_Delayed,
+    Arrivals_Delayed,
+    OnTime_Departures_Percent,
+    OnTime_Arrivals_Percent,
+    Cancellations_Percent
+  )
+
+
+# 14. FINAL ANALYSIS DATASET CHECK ----------------------------------------
+
+cat("\n=== FINAL ANALYSIS DATASET ===\n")
+
+cat(
+  "Number of rows:",
+  nrow(analysis_data),
+  "\n"
+)
+
+cat(
+  "Number of columns:",
+  ncol(analysis_data),
+  "\n"
+)
+
+cat(
+  "Number of analysis levels:",
+  n_distinct(analysis_data$Analysis_Level),
+  "\n"
+)
+
+cat(
+  "Number of years:",
+  n_distinct(analysis_data$Year),
+  "\n"
+)
+
+cat(
+  "Number of months:",
+  n_distinct(analysis_data$Month),
+  "\n"
+)
+
+
+cat("\nFinal analysis level counts:\n")
+
+print(
+  analysis_data %>%
+    count(
+      Analysis_Level
+    )
+)
+
+
+# 15. SAVE ANALYSIS DATA --------------------------------------------------
+
+write.csv(
+  analysis_data,
+  output_path,
+  row.names = FALSE,
+  na = ""
+)
+
+
+cat("\n=== FILE EXPORTED ===\n")
+
+cat(
+  "Analysis data saved to:",
+  output_path,
+  "\n"
+)
+
+
+# 16. FEATURE ENGINEERING FINISHED ----------------------------------------
+
+cat("\n=== FEATURE ENGINEERING FINISHED ===\n")
+```

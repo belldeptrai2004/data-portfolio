@@ -1,0 +1,503 @@
+---
+title: "Data Cleaning"
+output:
+  pdf_document:
+    latex_engine: pdflatex
+geometry: margin=1in
+---
+
+```{r, warning=FALSE, message=FALSE}
+# ============================================================
+# 02_data_cleaning.R
+# Airline Service Performance Visual Analytics
+# ============================================================
+
+
+# 1. LOAD PACKAGES --------------------------------------------------------
+
+library(readxl)
+library(dplyr)
+
+
+# 2. FILE PATHS -----------------------------------------------------------
+
+file_path <- "D:/data-portfolio/08_airline_service_performance_visual_analytics/data/raw/Dataset Assignment 2.xlsx"
+
+output_path <- "D:/data-portfolio/08_airline_service_performance_visual_analytics/data/processed/airline_performance_clean.csv"
+
+
+# Make sure the processed folder exists
+dir.create(
+  dirname(output_path),
+  recursive = TRUE,
+  showWarnings = FALSE
+)
+
+
+# 3. DEFINE CLEAN COLUMN NAMES --------------------------------------------
+
+clean_column_names <- c(
+  "Route",
+  "Departing_Port",
+  "Arriving_Port",
+  "Airline",
+  "Month",
+  "Sectors_Scheduled",
+  "Sectors_Flown",
+  "Cancellations",
+  "Departures_On_Time",
+  "Arrivals_On_Time",
+  "Departures_Delayed",
+  "Arrivals_Delayed",
+  "OnTime_Departures_Percent",
+  "OnTime_Arrivals_Percent",
+  "Cancellations_Percent"
+)
+
+
+# 4. CHECK AVAILABLE SHEETS -----------------------------------------------
+
+sheet_names <- excel_sheets(file_path)
+
+cat("\n=== ORIGINAL SHEETS ===\n")
+
+print(sheet_names)
+
+
+# 5. EXCLUDE THE DUPLICATED 2020 SHEET -----------------------------------
+
+sheets_to_use <- sheet_names[
+  sheet_names != "2020"
+]
+
+cat("\n=== SHEETS USED FOR CLEAN DATA ===\n")
+
+print(sheets_to_use)
+
+
+# 6. READ AND COMBINE THE SHEETS ------------------------------------------
+
+data_list <- list()
+
+for (sheet in sheets_to_use) {
+  
+  data <- read_excel(
+    file_path,
+    sheet = sheet,
+    range = cell_cols("A:O"),
+    na = c("", "na", "NA")
+  )
+  
+  names(data) <- clean_column_names
+  
+  data$Source_Sheet <- sheet
+  
+  data_list[[sheet]] <- data
+}
+
+master_raw <- bind_rows(data_list)
+
+
+cat("\n=== RAW COMBINED DATA ===\n")
+
+cat(
+  "Rows before cleaning:",
+  nrow(master_raw),
+  "\n"
+)
+
+
+# 7. REMOVE NON-DATA ROWS -------------------------------------------------
+
+clean_data <- master_raw %>%
+  filter(
+    !is.na(Route),
+    Route != "",
+    !is.na(Month)
+  )
+
+
+cat("\n=== NON-DATA ROW CHECK ===\n")
+
+cat(
+  "Rows removed:",
+  nrow(master_raw) - nrow(clean_data),
+  "\n"
+)
+
+cat(
+  "Rows remaining:",
+  nrow(clean_data),
+  "\n"
+)
+
+
+# 8. CLEAN TEXT COLUMNS ---------------------------------------------------
+
+clean_data$Route <- trimws(
+  clean_data$Route
+)
+
+clean_data$Departing_Port <- trimws(
+  clean_data$Departing_Port
+)
+
+clean_data$Arriving_Port <- trimws(
+  clean_data$Arriving_Port
+)
+
+clean_data$Airline <- trimws(
+  clean_data$Airline
+)
+
+
+# 9. CLEAN THE DATE COLUMN ------------------------------------------------
+
+clean_data$Month <- as.Date(
+  clean_data$Month
+)
+
+
+# 10. CONVERT OPERATIONAL COLUMNS TO NUMERIC ------------------------------
+
+numeric_columns <- c(
+  "Sectors_Scheduled",
+  "Sectors_Flown",
+  "Cancellations",
+  "Departures_On_Time",
+  "Arrivals_On_Time",
+  "Departures_Delayed",
+  "Arrivals_Delayed",
+  "OnTime_Departures_Percent",
+  "OnTime_Arrivals_Percent",
+  "Cancellations_Percent"
+)
+
+clean_data[numeric_columns] <- lapply(
+  clean_data[numeric_columns],
+  as.numeric
+)
+
+
+# 11. KEEP ORIGINAL AIRLINE LABEL -----------------------------------------
+
+clean_data$Airline_Original <- clean_data$Airline
+
+
+# 12. STANDARDISE AIRLINE NAMES -------------------------------------------
+
+clean_data$Airline <- case_when(
+  
+  clean_data$Airline == "virgin Australia" ~
+    "Virgin Australia",
+  
+  clean_data$Airline == "Regional Express" ~
+    "Rex Airlines",
+  
+  TRUE ~ clean_data$Airline
+)
+
+
+cat("\n=== AIRLINE NAME CLEANING ===\n")
+
+cat(
+  "Original airline labels:",
+  n_distinct(clean_data$Airline_Original),
+  "\n"
+)
+
+cat(
+  "Clean airline labels:",
+  n_distinct(clean_data$Airline),
+  "\n"
+)
+
+
+cat("\nOriginal airline labels:\n")
+
+print(
+  sort(
+    unique(clean_data$Airline_Original)
+  )
+)
+
+
+cat("\nClean airline labels:\n")
+
+print(
+  sort(
+    unique(clean_data$Airline)
+  )
+)
+
+
+# 13. CHECK MISSING OTP VALUES --------------------------------------------
+
+missing_otp <- clean_data %>%
+  filter(
+    is.na(OnTime_Departures_Percent) |
+    is.na(OnTime_Arrivals_Percent)
+  )
+
+
+cat("\n=== MISSING OTP CHECK ===\n")
+
+cat(
+  "Rows with missing OTP:",
+  nrow(missing_otp),
+  "\n"
+)
+
+cat(
+  "Missing Departure OTP values:",
+  sum(
+    is.na(
+      clean_data$OnTime_Departures_Percent
+    )
+  ),
+  "\n"
+)
+
+cat(
+  "Missing Arrival OTP values:",
+  sum(
+    is.na(
+      clean_data$OnTime_Arrivals_Percent
+    )
+  ),
+  "\n"
+)
+
+
+# 14. CHECK ZERO SECTORS FLOWN --------------------------------------------
+
+zero_flown <- clean_data %>%
+  filter(
+    Sectors_Flown == 0
+  )
+
+
+cat("\n=== ZERO SECTORS FLOWN CHECK ===\n")
+
+cat(
+  "Rows with zero sectors flown:",
+  nrow(zero_flown),
+  "\n"
+)
+
+
+# 15. VALIDATE MISSING OTP VALUES -----------------------------------------
+
+all_missing_have_zero_flown <- all(
+  missing_otp$Sectors_Flown == 0
+)
+
+all_zero_flown_have_missing_otp <- all(
+  is.na(
+    zero_flown$OnTime_Departures_Percent
+  ) &
+  is.na(
+    zero_flown$OnTime_Arrivals_Percent
+  )
+)
+
+
+cat("\n=== OTP VALIDATION ===\n")
+
+cat(
+  "All missing OTP rows have zero sectors flown:",
+  all_missing_have_zero_flown,
+  "\n"
+)
+
+cat(
+  "All zero-sector rows have missing OTP:",
+  all_zero_flown_have_missing_otp,
+  "\n"
+)
+
+
+# Missing OTP values are kept as NA.
+# OTP is undefined when no sectors were flown.
+
+
+# 16. CHECK DUPLICATED ANALYTICAL KEYS ------------------------------------
+
+duplicate_keys <- clean_data %>%
+  count(
+    Route,
+    Departing_Port,
+    Arriving_Port,
+    Airline,
+    Month
+  ) %>%
+  filter(
+    n > 1
+  )
+
+
+cat("\n=== DUPLICATE KEY CHECK ===\n")
+
+cat(
+  "Duplicated analytical keys:",
+  nrow(duplicate_keys),
+  "\n"
+)
+
+print(
+  head(
+    duplicate_keys,
+    10
+  )
+)
+
+
+# 17. VALIDATE FLIGHT COUNT RELATIONSHIPS ---------------------------------
+
+# A small tolerance avoids false errors caused by
+# tiny floating-point differences.
+
+tolerance <- 0.000001
+
+
+scheduled_check <- clean_data %>%
+  filter(
+    abs(
+      Sectors_Scheduled -
+      Sectors_Flown -
+      Cancellations
+    ) > tolerance
+  )
+
+
+departure_check <- clean_data %>%
+  filter(
+    abs(
+      Sectors_Flown -
+      Departures_On_Time -
+      Departures_Delayed
+    ) > tolerance
+  )
+
+
+arrival_check <- clean_data %>%
+  filter(
+    abs(
+      Sectors_Flown -
+      Arrivals_On_Time -
+      Arrivals_Delayed
+    ) > tolerance
+  )
+
+
+cat("\n=== FLIGHT COUNT VALIDATION ===\n")
+
+cat(
+  "Scheduled count inconsistencies:",
+  nrow(scheduled_check),
+  "\n"
+)
+
+cat(
+  "Departure count inconsistencies:",
+  nrow(departure_check),
+  "\n"
+)
+
+cat(
+  "Arrival count inconsistencies:",
+  nrow(arrival_check),
+  "\n"
+)
+
+
+# 18. FINAL DATASET CHECK -------------------------------------------------
+
+cat("\n=== FINAL CLEAN DATASET ===\n")
+
+cat(
+  "Number of rows:",
+  nrow(clean_data),
+  "\n"
+)
+
+cat(
+  "Number of columns:",
+  ncol(clean_data),
+  "\n"
+)
+
+cat(
+  "Date range:",
+  as.character(
+    min(clean_data$Month)
+  ),
+  "to",
+  as.character(
+    max(clean_data$Month)
+  ),
+  "\n"
+)
+
+cat(
+  "Number of months:",
+  n_distinct(clean_data$Month),
+  "\n"
+)
+
+
+airport_names <- unique(
+  c(
+    clean_data$Departing_Port,
+    clean_data$Arriving_Port
+  )
+)
+
+airport_names <- airport_names[
+  !is.na(airport_names) &
+  airport_names != "All Ports"
+]
+
+
+cat(
+  "Number of physical airports:",
+  length(airport_names),
+  "\n"
+)
+
+cat(
+  "Number of clean airline labels:",
+  n_distinct(clean_data$Airline),
+  "\n"
+)
+
+cat(
+  "Number of route labels:",
+  n_distinct(clean_data$Route),
+  "\n"
+)
+
+
+# 19. SAVE CLEAN DATA -----------------------------------------------------
+
+write.csv(
+  clean_data,
+  output_path,
+  row.names = FALSE,
+  na = ""
+)
+
+
+cat("\n=== FILE EXPORTED ===\n")
+
+cat(
+  "Clean data saved to:",
+  output_path,
+  "\n"
+)
+
+
+# 20. CLEANING FINISHED ---------------------------------------------------
+
+cat("\n=== DATA CLEANING FINISHED ===\n")
+```

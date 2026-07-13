@@ -1,0 +1,443 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+# ============================================================
+# 01_data_audit
+# Airline Service Performance Visual Analytics
+# ============================================================
+
+
+# 1. LOAD PACKAGES --------------------------------------------------------
+
+library(readxl)
+library(dplyr)
+
+
+# 2. FILE PATH ------------------------------------------------------------
+
+file_path <- "D:/data-portfolio/08_airline_service_performance_visual_analytics/data/raw/Dataset Assignment 2.xlsx"
+
+
+# 3. CHECK SHEET NAMES ----------------------------------------------------
+
+sheet_names <- excel_sheets(file_path)
+
+cat("\n=== SHEET NAMES ===\n")
+print(sheet_names)
+
+
+# 4. READ THE MAIN SHEET --------------------------------------------------
+
+main_data <- read_excel(
+  file_path,
+  sheet = "2020-23 OTP"
+)
+
+cat("\n=== ORIGINAL COLUMN NAMES ===\n")
+print(names(main_data))
+
+
+# 5. CREATE SIMPLE COLUMN NAMES -------------------------------------------
+
+clean_column_names <- c(
+  "Route",
+  "Departing_Port",
+  "Arriving_Port",
+  "Airline",
+  "Month",
+  "Sectors_Scheduled",
+  "Sectors_Flown",
+  "Cancellations",
+  "Departures_On_Time",
+  "Arrivals_On_Time",
+  "Departures_Delayed",
+  "Arrivals_Delayed",
+  "OnTime_Departures_Percent",
+  "OnTime_Arrivals_Percent",
+  "Cancellations_Percent"
+)
+
+names(main_data) <- clean_column_names
+
+cat("\n=== CLEAN COLUMN NAMES ===\n")
+print(names(main_data))
+
+
+# 6. CHECK EACH SHEET -----------------------------------------------------
+
+sheet_summary <- data.frame(
+  Sheet = character(),
+  Rows = numeric(),
+  Columns = numeric()
+)
+
+for (sheet in sheet_names) {
+  
+  data <- read_excel(
+    file_path,
+    sheet = sheet
+  )
+  
+  new_row <- data.frame(
+    Sheet = sheet,
+    Rows = nrow(data),
+    Columns = ncol(data)
+  )
+  
+  sheet_summary <- bind_rows(
+    sheet_summary,
+    new_row
+  )
+}
+
+cat("\n=== SHEET SUMMARY ===\n")
+print(sheet_summary)
+
+
+# 7. CHECK 2020 DUPLICATION -----------------------------------------------
+
+data_2020_main <- read_excel(
+  file_path,
+  sheet = "2020-23 OTP"
+)
+
+data_2020_old <- read_excel(
+  file_path,
+  sheet = "2020"
+)
+
+names(data_2020_main) <- clean_column_names
+names(data_2020_old) <- clean_column_names
+
+data_2020_main <- data_2020_main %>%
+  filter(
+    format(as.Date(Month), "%Y") == "2020"
+  )
+
+duplicate_2020 <- inner_join(
+  data_2020_main,
+  data_2020_old,
+  by = c(
+    "Route",
+    "Departing_Port",
+    "Arriving_Port",
+    "Airline",
+    "Month"
+  )
+)
+
+cat("\n=== 2020 DUPLICATE CHECK ===\n")
+
+cat(
+  "2020 rows in 2020-23 OTP:",
+  nrow(data_2020_main),
+  "\n"
+)
+
+cat(
+  "Rows in standalone 2020 sheet:",
+  nrow(data_2020_old),
+  "\n"
+)
+
+cat(
+  "Matching 2020 keys:",
+  nrow(duplicate_2020),
+  "\n"
+)
+
+
+# 8. CHOOSE SHEETS FOR THE MASTER DATA ------------------------------------
+
+sheets_to_use <- sheet_names[
+  sheet_names != "2020"
+]
+
+cat("\n=== SHEETS USED ===\n")
+print(sheets_to_use)
+
+
+# 9. READ AND COMBINE THE SHEETS ------------------------------------------
+
+data_list <- list()
+
+for (sheet in sheets_to_use) {
+  
+  data <- read_excel(
+    file_path,
+    sheet = sheet,
+    range = cell_cols("A:O")
+  )
+  
+  names(data) <- clean_column_names
+  
+  data$Source_Sheet <- sheet
+  
+  data_list[[sheet]] <- data
+}
+
+master_raw <- bind_rows(data_list)
+
+
+# 10. KEEP REAL DATA ROWS -------------------------------------------------
+
+master_data <- master_raw %>%
+  filter(
+    !is.na(Route),
+    Route != "",
+    !is.na(Month)
+  )
+
+
+# 11. CHECK DATASET SIZE --------------------------------------------------
+
+cat("\n=== DATASET OVERVIEW ===\n")
+
+cat(
+  "Number of rows:",
+  nrow(master_data),
+  "\n"
+)
+
+cat(
+  "Number of columns:",
+  ncol(master_data),
+  "\n"
+)
+
+cat(
+  "Date range:",
+  as.character(min(master_data$Month)),
+  "to",
+  as.character(max(master_data$Month)),
+  "\n"
+)
+
+cat(
+  "Number of months:",
+  n_distinct(master_data$Month),
+  "\n"
+)
+
+cat(
+  "Number of airline labels:",
+  n_distinct(master_data$Airline),
+  "\n"
+)
+
+cat(
+  "Number of route labels:",
+  n_distinct(master_data$Route),
+  "\n"
+)
+
+
+# 12. CHECK AIRPORT NAMES -------------------------------------------------
+
+airport_names <- c(
+  master_data$Departing_Port,
+  master_data$Arriving_Port
+)
+
+airport_names <- unique(airport_names)
+
+airport_names <- airport_names[
+  !is.na(airport_names) &
+    airport_names != "All Ports"
+]
+
+cat("\n=== AIRPORT CHECK ===\n")
+
+cat(
+  "Number of physical airport names:",
+  length(airport_names),
+  "\n"
+)
+
+print(
+  sort(airport_names)
+)
+
+
+# 13. CHECK AIRLINE NAMES -------------------------------------------------
+
+cat("\n=== AIRLINE LABELS ===\n")
+
+print(
+  sort(
+    unique(master_data$Airline)
+  )
+)
+
+
+# 14. CREATE FOUR ANALYTICAL LEVELS ---------------------------------------
+
+network_month <- master_data %>%
+  filter(
+    Route == "All Ports-All Ports",
+    Airline == "All Airlines"
+  )
+
+
+airline_month <- master_data %>%
+  filter(
+    Route == "All Ports-All Ports",
+    Airline != "All Airlines"
+  )
+
+
+route_month <- master_data %>%
+  filter(
+    Route != "All Ports-All Ports",
+    Airline == "All Airlines"
+  )
+
+
+airline_route_month <- master_data %>%
+  filter(
+    Route != "All Ports-All Ports",
+    Airline != "All Airlines"
+  )
+
+
+cat("\n=== ANALYTICAL DATA LEVELS ===\n")
+
+cat(
+  "Network-month rows:",
+  nrow(network_month),
+  "\n"
+)
+
+cat(
+  "Airline-month rows:",
+  nrow(airline_month),
+  "\n"
+)
+
+cat(
+  "Route-month rows:",
+  nrow(route_month),
+  "\n"
+)
+
+cat(
+  "Airline-route-month rows:",
+  nrow(airline_route_month),
+  "\n"
+)
+
+cat(
+  "Total rows across four levels:",
+  nrow(network_month) +
+    nrow(airline_month) +
+    nrow(route_month) +
+    nrow(airline_route_month),
+  "\n"
+)
+
+
+# 15. CHECK MISSING OTP VALUES --------------------------------------------
+
+departure_otp <- as.character(
+  master_data$OnTime_Departures_Percent
+)
+
+arrival_otp <- as.character(
+  master_data$OnTime_Arrivals_Percent
+)
+
+missing_departure_otp <- sum(
+  is.na(departure_otp) |
+    tolower(trimws(departure_otp)) == "na"
+)
+
+missing_arrival_otp <- sum(
+  is.na(arrival_otp) |
+    tolower(trimws(arrival_otp)) == "na"
+)
+
+cat("\n=== MISSING OTP CHECK ===\n")
+
+cat(
+  "Missing Departure OTP values:",
+  missing_departure_otp,
+  "\n"
+)
+
+cat(
+  "Missing Arrival OTP values:",
+  missing_arrival_otp,
+  "\n"
+)
+
+
+# 16. CHECK ZERO SECTORS FLOWN --------------------------------------------
+
+zero_flown <- master_data %>%
+  filter(
+    Sectors_Flown == 0
+  )
+
+cat("\n=== ZERO SECTORS FLOWN ===\n")
+
+cat(
+  "Rows with zero sectors flown:",
+  nrow(zero_flown),
+  "\n"
+)
+
+print(
+  zero_flown %>%
+    select(
+      Route,
+      Departing_Port,
+      Arriving_Port,
+      Airline,
+      Month,
+      Sectors_Scheduled,
+      Sectors_Flown,
+      Cancellations,
+      OnTime_Departures_Percent,
+      OnTime_Arrivals_Percent
+    ) %>%
+    head(10)
+)
+
+
+# 17. CHECK DUPLICATED KEYS -----------------------------------------------
+
+duplicate_keys <- master_data %>%
+  count(
+    Route,
+    Departing_Port,
+    Arriving_Port,
+    Airline,
+    Month
+  ) %>%
+  filter(
+    n > 1
+  )
+
+cat("\n=== DUPLICATE KEY CHECK ===\n")
+
+cat(
+  "Number of duplicated keys:",
+  nrow(duplicate_keys),
+  "\n"
+)
+
+print(
+  head(
+    duplicate_keys,
+    10
+  )
+)
+
+
+# 18. AUDIT FINISHED ------------------------------------------------------
+
+cat("\n=== AUDIT FINISHED ===\n")
+```
