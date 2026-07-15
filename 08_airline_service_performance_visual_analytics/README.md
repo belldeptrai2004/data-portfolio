@@ -1,8 +1,8 @@
-\# Australian Airline Punctuality and Reliability Visual Analytics
+# Australian Airline Punctuality and Reliability Visual Analytics
 
 
 
-\## Project Overview
+## Project Overview
 
 
 
@@ -14,21 +14,21 @@ The analysis examines domestic airline punctuality and reliability from January 
 
 
 
-\- time
+- time
 
-\- airports
+- airports
 
-\- routes
+- routes
 
-\- airlines
+- airlines
 
-\- flight activity
+- flight activity
 
-\- departure on-time performance
+- departure on-time performance
 
-\- arrival on-time performance
+- arrival on-time performance
 
-\- cancellations
+- cancellations
 
 
 
@@ -40,11 +40,11 @@ The project was developed for COMP2026 Visual Analytics Assignment 2.
 
 
 
-\---
+---
 
 
 
-\## Project Objectives
+## Project Objectives
 
 
 
@@ -66,15 +66,15 @@ The analysis addresses the following questions:
 
 
 
-\---
+---
 
 
 
-\## Tools
+## Tools
 
 
 
-\### R
+### R
 
 
 
@@ -82,25 +82,25 @@ Used for:
 
 
 
-\- workbook auditing
+- workbook auditing
 
-\- worksheet inspection
+- worksheet inspection
 
-\- duplicate detection
+- duplicate detection
 
-\- data integration
+- data integration
 
-\- missing-value validation
+- missing-value validation
 
-\- airline-name standardisation
+- airline-name standardisation
 
-\- feature engineering
+- feature engineering
 
-\- analytical-layer creation
+- analytical-layer creation
 
-\- weighted metric validation
+- weighted metric validation
 
-\- reproducible numerical findings
+- reproducible numerical findings
 
 
 
@@ -118,7 +118,7 @@ dplyr
 
 
 
-\### Tableau
+### Tableau
 
 
 
@@ -126,29 +126,29 @@ Used for:
 
 
 
-\- interactive geographic visualisation
+- interactive geographic visualisation
 
-\- network time-series analysis
+- network time-series analysis
 
-\- airport heatmaps
+- airport heatmaps
 
-\- multidimensional route analysis
+- multidimensional route analysis
 
-\- airline comparison
+- airline comparison
 
-\- interactive parameters
+- interactive parameters
 
-\- tooltips
+- tooltips
 
-\- worksheet-level analytical filters
-
-
-
-\---
+- worksheet-level analytical filters
 
 
 
-\## Project Structure
+---
+
+
+
+## Project Structure
 
 
 
@@ -232,11 +232,11 @@ Used for:
 
 
 
-\---
+---
 
 
 
-\## Data Source
+## Data Source
 
 
 
@@ -268,11 +268,11 @@ The standalone `2020` worksheet was therefore excluded before integration to pre
 
 
 
-\---
+---
 
 
 
-\## Data Preparation Workflow
+## Data Preparation Workflow
 
 
 
@@ -280,7 +280,7 @@ The R workflow is divided into four stages.
 
 
 
-\### 1. Data Audit
+### 1. Data Audit
 
 
 
@@ -300,23 +300,23 @@ The audit examines:
 
 
 
-\- worksheet names
+- worksheet names
 
-\- worksheet dimensions
+- worksheet dimensions
 
-\- column structure
+- column structure
 
-\- date coverage
+- date coverage
 
-\- record counts
+- record counts
 
-\- airport counts
+- airport counts
 
-\- route counts
+- route counts
 
-\- airline labels
+- airline labels
 
-\- potential duplicate sources
+- potential duplicate sources
 
 
 
@@ -340,11 +340,11 @@ The standalone 2020 worksheet was confirmed as duplicated data.
 
 
 
-\---
+---
 
 
 
-\### 2. Data Cleaning and Integration
+### 2. Data Cleaning and Integration
 
 
 
@@ -368,27 +368,27 @@ Processing steps include:
 
 
 
-\- excluding the duplicated 2020 worksheet
+- excluding the duplicated 2020 worksheet
 
-\- combining annual worksheets
+- combining annual worksheets
 
-\- standardising column names
+- standardising column names
 
-\- trimming text fields
+- trimming text fields
 
-\- converting monthly values to a consistent date type
+- converting monthly values to a consistent date type
 
-\- converting operational measures to numeric variables
+- converting operational measures to numeric variables
 
-\- removing invalid non-data rows
+- removing invalid non-data rows
 
-\- standardising airline labels
+- standardising airline labels
 
-\- validating duplicated analytical keys
+- validating duplicated analytical keys
 
-\- validating flight-count relationships
+- validating flight-count relationships
 
-\- inspecting missing OTP values
+- inspecting missing OTP values
 
 
 
@@ -474,11 +474,11 @@ Arrival-count inconsistencies:       0
 
 
 
-\---
+---
 
 
 
-\### 3. Feature Engineering and Analytical Layers
+### 3. Feature Engineering and Analytical Layers
 
 
 
@@ -518,17 +518,17 @@ The four analytical layers are:
 
 
 
-| Analysis Level | Records | Purpose |
+` Analysis Level ` Records ` Purpose `
 
-|---|---:|---|
+`---`---:`---`
 
-| Network | 170 | Overall monthly network analysis |
+` Network ` 170 ` Overall monthly network analysis `
 
-| Airline | 1,174 | Airline comparison |
+` Airline ` 1,174 ` Airline comparison `
 
-| Route | 20,156 | Route and airport analysis |
+` Route ` 20,156 ` Route and airport analysis `
 
-| Airline Route | 59,472 | Detailed airline-route analysis |
+` Airline Route ` 59,472 ` Detailed airline-route analysis `
 
 
 
@@ -576,7 +576,7 @@ data/processed/airline\_performance\_analysis.csv
 
 
 
-\### Important Analytical Grain Rule
+### Important Analytical Grain Rule
 
 
 
@@ -610,11 +610,11 @@ Records from different analytical levels must not be summed together because thi
 
 
 
-\---
+---
 
 
 
-\### 4. Reproducible Findings Analysis
+### 4. Reproducible Findings Analysis
 
 
 
@@ -638,33 +638,33 @@ It calculates:
 
 
 
-\- overall network performance
+- overall network performance
 
-\- annual network activity
+- annual network activity
 
-\- monthly cancellation peaks
+- monthly cancellation peaks
 
-\- minimum monthly OTP
+- minimum monthly OTP
 
-\- airport activity concentration
+- airport activity concentration
 
-\- airport OTP rankings
+- airport OTP rankings
 
-\- departure-arrival airport differences
+- departure-arrival airport differences
 
-\- annual airport performance changes
+- annual airport performance changes
 
-\- persistent airport performance patterns
+- persistent airport performance patterns
 
-\- monthly 2023 airport patterns
+- monthly 2023 airport patterns
 
-\- route benchmark groups
+- route benchmark groups
 
-\- route volume and cancellation performance
+- route volume and cancellation performance
 
-\- route directional OTP gaps
+- route directional OTP gaps
 
-\- airline punctuality and cancellation performance
+- airline punctuality and cancellation performance
 
 
 
@@ -708,11 +708,11 @@ Report findings
 
 
 
-\---
+---
 
 
 
-\## Performance Measures
+## Performance Measures
 
 
 
@@ -720,7 +720,7 @@ Aggregated percentages use weighted calculations based on underlying flight coun
 
 
 
-\### Weighted Departure OTP
+### Weighted Departure OTP
 
 
 
@@ -728,7 +728,7 @@ Aggregated percentages use weighted calculations based on underlying flight coun
 
 Total Departures On Time
 
-\---------------------------- × 100
+---------------------------- × 100
 
 Total Sectors Flown
 
@@ -736,7 +736,7 @@ Total Sectors Flown
 
 
 
-\### Weighted Arrival OTP
+### Weighted Arrival OTP
 
 
 
@@ -744,7 +744,7 @@ Total Sectors Flown
 
 Total Arrivals On Time
 
-\-------------------------- × 100
+-------------------------- × 100
 
 Total Sectors Flown
 
@@ -752,7 +752,7 @@ Total Sectors Flown
 
 
 
-\### Weighted Cancellation Rate
+### Weighted Cancellation Rate
 
 
 
@@ -760,7 +760,7 @@ Total Sectors Flown
 
 Total Cancellations
 
-\--------------------------- × 100
+--------------------------- × 100
 
 Total Sectors Scheduled
 
@@ -776,15 +776,15 @@ Using weighted calculations prevents low-volume observations from having the sam
 
 
 
-\---
+---
 
 
 
-\## Tableau Calculated Fields
+## Tableau Calculated Fields
 
 
 
-\### Weighted Departure OTP
+### Weighted Departure OTP
 
 
 
@@ -804,7 +804,7 @@ END
 
 
 
-\### Weighted Arrival OTP
+### Weighted Arrival OTP
 
 
 
@@ -824,7 +824,7 @@ END
 
 
 
-\### Weighted Cancellation Rate
+### Weighted Cancellation Rate
 
 
 
@@ -852,11 +852,11 @@ The calculations must not be multiplied by 100 in Tableau because percentage for
 
 
 
-\---
+---
 
 
 
-\## Interactive Airport Perspective
+## Interactive Airport Perspective
 
 
 
@@ -890,7 +890,7 @@ The parameter controls both the airport dimension and OTP measure.
 
 
 
-\### Selected Airport
+### Selected Airport
 
 
 
@@ -910,7 +910,7 @@ END
 
 
 
-\### Selected Airport OTP
+### Selected Airport OTP
 
 
 
@@ -934,11 +934,11 @@ This allows the geographic and airport heatmap views to switch dynamically betwe
 
 
 
-\---
+---
 
 
 
-\## Tableau Visualisations
+## Tableau Visualisations
 
 
 
@@ -946,7 +946,7 @@ The Tableau workbook contains seven analytical worksheets.
 
 
 
-\### 01 — Network OTP Trend
+### 01 — Network OTP Trend
 
 
 
@@ -962,11 +962,11 @@ Purpose:
 
 
 
-\- examine long-term network punctuality
+- examine long-term network punctuality
 
-\- compare weighted departure and arrival OTP
+- compare weighted departure and arrival OTP
 
-\- identify temporal irregularities
+- identify temporal irregularities
 
 
 
@@ -988,11 +988,11 @@ Analysis Level: Network
 
 
 
-\---
+---
 
 
 
-\### 02 — Network Cancellation Trend
+### 02 — Network Cancellation Trend
 
 
 
@@ -1008,9 +1008,9 @@ Purpose:
 
 
 
-\- examine network cancellation reliability
+- examine network cancellation reliability
 
-\- identify cancellation spikes and unusual periods
+- identify cancellation spikes and unusual periods
 
 
 
@@ -1034,11 +1034,11 @@ Cancellation is displayed separately from OTP because its scale and extreme spik
 
 
 
-\---
+---
 
 
 
-\### 03 — Geographic Airport Performance
+### 03 — Geographic Airport Performance
 
 
 
@@ -1054,11 +1054,11 @@ Purpose:
 
 
 
-\- analyse geographic airport performance
+- analyse geographic airport performance
 
-\- compare operational scale and punctuality
+- compare operational scale and punctuality
 
-\- switch between departure and arrival perspectives
+- switch between departure and arrival perspectives
 
 
 
@@ -1096,11 +1096,11 @@ Hamilton Island
 
 
 
-\---
+---
 
 
 
-\### 04 — Airport Performance by Year
+### 04 — Airport Performance by Year
 
 
 
@@ -1116,9 +1116,9 @@ Purpose:
 
 
 
-\- compare airport performance across years
+- compare airport performance across years
 
-\- identify persistent and network-wide temporal patterns
+- identify persistent and network-wide temporal patterns
 
 
 
@@ -1166,11 +1166,11 @@ The colour scale is fixed from:
 
 
 
-\---
+---
 
 
 
-\### 05 — Airport Monthly Performance in 2023
+### 05 — Airport Monthly Performance in 2023
 
 
 
@@ -1186,9 +1186,9 @@ Purpose:
 
 
 
-\- analyse airport performance through all 12 months of a complete year
+- analyse airport performance through all 12 months of a complete year
 
-\- identify monthly variation and potential seasonal structure
+- identify monthly variation and potential seasonal structure
 
 
 
@@ -1216,11 +1216,11 @@ Months are sorted chronologically using `Month\_Number`.
 
 
 
-\---
+---
 
 
 
-\### 06 — Route Performance Scatter Plot
+### 06 — Route Performance Scatter Plot
 
 
 
@@ -1236,13 +1236,13 @@ Purpose:
 
 
 
-\- examine multidimensional route performance
+- examine multidimensional route performance
 
-\- compare departure and arrival punctuality
+- compare departure and arrival punctuality
 
-\- analyse flight volume and cancellation reliability
+- analyse flight volume and cancellation reliability
 
-\- identify unusual route observations
+- identify unusual route observations
 
 
 
@@ -1286,11 +1286,11 @@ Cancellation reliability
 
 
 
-\---
+---
 
 
 
-\### 07 — Airline Performance Comparison
+### 07 — Airline Performance Comparison
 
 
 
@@ -1306,9 +1306,9 @@ Purpose:
 
 
 
-\- directly compare airline punctuality
+- directly compare airline punctuality
 
-\- compare weighted departure and arrival OTP
+- compare weighted departure and arrival OTP
 
 
 
@@ -1346,11 +1346,11 @@ A grouped horizontal bar chart was selected instead of a scatter plot because th
 
 
 
-\---
+---
 
 
 
-\## Key Findings
+## Key Findings
 
 
 
@@ -1358,7 +1358,7 @@ Selected reproducible findings include:
 
 
 
-\### Network Performance
+### Network Performance
 
 
 
@@ -1404,11 +1404,11 @@ Arrival OTP:   55.0%
 
 
 
-\---
+---
 
 
 
-\### Airport Performance
+### Airport Performance
 
 
 
@@ -1444,11 +1444,11 @@ Lowest Arrival OTP:    Port Macquarie 74.4%
 
 
 
-\---
+---
 
 
 
-\### Airport Performance Across Years
+### Airport Performance Across Years
 
 
 
@@ -1500,11 +1500,11 @@ Arrival OTP < 80% in 13 of 14 complete years
 
 
 
-\---
+---
 
 
 
-\### Monthly Performance in 2023
+### Monthly Performance in 2023
 
 
 
@@ -1552,11 +1552,11 @@ However, one complete year is insufficient to establish a recurring seasonal cyc
 
 
 
-\---
+---
 
 
 
-\### Route Performance
+### Route Performance
 
 
 
@@ -1624,11 +1624,11 @@ Adelaide-Darwin:  -12.3 percentage points
 
 
 
-\---
+---
 
 
 
-\### Airline Performance
+### Airline Performance
 
 
 
@@ -1672,11 +1672,11 @@ The results demonstrate that punctuality should be interpreted together with can
 
 
 
-\---
+---
 
 
 
-\## Reproducibility
+## Reproducibility
 
 
 
@@ -1748,11 +1748,11 @@ For submission or transfer to another computer, a Tableau packaged workbook (`.t
 
 
 
-\---
+---
 
 
 
-\## Analytical Limitations
+## Analytical Limitations
 
 
 
@@ -1760,19 +1760,19 @@ The dataset does not contain several variables that could explain the operationa
 
 
 
-\- weather
+- weather
 
-\- airport congestion
+- airport congestion
 
-\- staffing
+- staffing
 
-\- aircraft availability
+- aircraft availability
 
-\- passenger volume
+- passenger volume
 
-\- delay duration
+- delay duration
 
-\- disruption causes
+- disruption causes
 
 
 
@@ -1792,11 +1792,11 @@ The analysis is therefore descriptive rather than causal.
 
 
 
-\---
+---
 
 
 
-\## Potential Extensions
+## Potential Extensions
 
 
 
@@ -1804,23 +1804,23 @@ Future analysis could incorporate:
 
 
 
-\- clustering of airports or routes with similar operational profiles
+- clustering of airports or routes with similar operational profiles
 
-\- principal component analysis for dimensionality reduction
+- principal component analysis for dimensionality reduction
 
-\- automated anomaly detection
+- automated anomaly detection
 
-\- Isolation Forest
+- Isolation Forest
 
-\- multi-year seasonal time-series analysis
+- multi-year seasonal time-series analysis
 
-\- weather and congestion data
+- weather and congestion data
 
-\- passenger-volume data
+- passenger-volume data
 
-\- flight-level delay data
+- flight-level delay data
 
-\- database-backed or pre-aggregated visual querying for larger datasets
+- database-backed or pre-aggregated visual querying for larger datasets
 
 
 
@@ -1828,17 +1828,17 @@ These methods could complement interactive visual analysis by systematically ide
 
 
 
-\---
+---
 
 
 
-\## Author
+## Author
 
 
 
-\*\*Phạm Minh Khôi\*\*  
+**Phạm Minh Khôi**  
 
-Student ID: \*\*22145599\*\*
+Student ID: **22145599**
 
 
 
@@ -1848,37 +1848,37 @@ Assignment 2 — Multidimensional Data Visualisation
 
 
 
-\---
+---
 
 
 
-\## References
+## References
 
 
 
-Bureau of Infrastructure and Transport Research Economics. (n.d.). \*Airline on-time performance—Monthly reports and time series data\*. Retrieved July 15, 2026, from https://www.bitre.gov.au/resource/aviation/airline-time-performance-monthly-reports-and-time-series-data
+Bureau of Infrastructure and Transport Research Economics. (n.d.). *Airline on-time performance—Monthly reports and time series data*. Retrieved July 15, 2026, from https://www.bitre.gov.au/resource/aviation/airline-time-performance-monthly-reports-and-time-series-data
 
 
 
-Heer, J., \& Shneiderman, B. (2012). Interactive dynamics for visual analysis. \*Communications of the ACM, 55\*(4), 45–54. https://doi.org/10.1145/2133806.2133821
+Heer, J., \& Shneiderman, B. (2012). Interactive dynamics for visual analysis. *Communications of the ACM, 55*(4), 45–54. https://doi.org/10.1145/2133806.2133821
 
 
 
-Liu, F. T., Ting, K. M., \& Zhou, Z.-H. (2008). Isolation forest. In \*2008 Eighth IEEE International Conference on Data Mining\* (pp. 413–422). IEEE. https://doi.org/10.1109/ICDM.2008.17
+Liu, F. T., Ting, K. M., \& Zhou, Z.-H. (2008). Isolation forest. In *2008 Eighth IEEE International Conference on Data Mining* (pp. 413–422). IEEE. https://doi.org/10.1109/ICDM.2008.17
 
 
 
-Liu, Z., Jiang, B., \& Heer, J. (2013). imMens: Real-time visual querying of big data. \*Computer Graphics Forum, 32\*(3pt4), 421–430. https://doi.org/10.1111/cgf.12129
+Liu, Z., Jiang, B., \& Heer, J. (2013). imMens: Real-time visual querying of big data. *Computer Graphics Forum, 32*(3pt4), 421–430. https://doi.org/10.1111/cgf.12129
 
 
 
-Oliveira, A. V. M., Oliveira, B. F., \& Vassallo, M. D. (2023). Airport service quality perception and flight delays: Examining the influence of psychosituational latent traits of respondents in passenger satisfaction surveys. \*Research in Transportation Economics, 102\*, 101371. https://doi.org/10.1016/j.retrec.2023.101371
+Oliveira, A. V. M., Oliveira, B. F., \& Vassallo, M. D. (2023). Airport service quality perception and flight delays: Examining the influence of psychosituational latent traits of respondents in passenger satisfaction surveys. *Research in Transportation Economics, 102*, 101371. https://doi.org/10.1016/j.retrec.2023.101371
 
 
 
-Pearson, K. (1901). LIII. On lines and planes of closest fit to systems of points in space. \*The London, Edinburgh, and Dublin Philosophical Magazine and Journal of Science, 2\*(11), 559–572. https://doi.org/10.1080/14786440109462720
+Pearson, K. (1901). LIII. On lines and planes of closest fit to systems of points in space. *The London, Edinburgh, and Dublin Philosophical Magazine and Journal of Science, 2*(11), 559–572. https://doi.org/10.1080/14786440109462720
 
 
 
-Shneiderman, B. (1996). The eyes have it: A task by data type taxonomy for information visualizations. In \*Proceedings of the 1996 IEEE Symposium on Visual Languages\* (pp. 336–343). IEEE. https://doi.org/10.1109/VL.1996.545307
+Shneiderman, B. (1996). The eyes have it: A task by data type taxonomy for information visualizations. In *Proceedings of the 1996 IEEE Symposium on Visual Languages* (pp. 336–343). IEEE. https://doi.org/10.1109/VL.1996.545307
 
