@@ -324,7 +324,7 @@ data/processed/invoice_baskets.csv
 Product lists are stored using a pipe-separated format:
 
 ```text
-85048|79323P|79323W|22041
+85048`79323P`79323W`22041
 ```
 
 ---
@@ -381,12 +381,12 @@ The workflow generated:
 
 The edge table contains:
 
-| Field | Description |
-|---|---|
-| Source | First product StockCode |
-| Target | Second product StockCode |
-| Type | Undirected |
-| Weight | Number of invoices containing the pair |
+` Field ` Description `
+`---`---`
+` Source ` First product StockCode `
+` Target ` Second product StockCode `
+` Type ` Undirected `
+` Weight ` Number of invoices containing the pair `
 
 The complete edge table is exported to:
 
@@ -464,15 +464,15 @@ Node files contain products that appear in the corresponding filtered edge netwo
 
 Each product node contains:
 
-| Field | Description |
-|---|---|
-| Id | Product StockCode |
-| Label | Product description |
-| TotalQuantity | Total units recorded after cleaning |
-| TotalRevenue | Quantity multiplied by Price |
-| InvoiceCount | Number of unique invoices containing the product |
-| Degree | Number of connected products |
-| WeightedDegree | Sum of co-purchase edge weights |
+` Field ` Description `
+`---`---`
+` Id ` Product StockCode `
+` Label ` Product description `
+` TotalQuantity ` Total units recorded after cleaning `
+` TotalRevenue ` Quantity multiplied by Price `
+` InvoiceCount ` Number of unique invoices containing the product `
+` Degree ` Number of connected products `
+` WeightedDegree ` Sum of co-purchase edge weights `
 
 Product revenue is calculated as:
 
@@ -773,13 +773,13 @@ The threshold-100 network contains several high-degree product hubs.
 
 Top products by degree:
 
-| Rank | StockCode | Product | Degree |
-|---:|---|---|---:|
-| 1 | 85123A | WHITE HANGING HEART T-LIGHT HOLDER | 155 |
-| 2 | 85099B | JUMBO BAG RED WHITE SPOTTY | 89 |
-| 3 | 20725 | LUNCH BAG RED SPOTTY | 77 |
-| 4 | 22423 | REGENCY CAKESTAND 3 TIER | 77 |
-| 5 | 21212 | PACK OF 72 RETRO SPOT CAKE CASES | 56 |
+` Rank ` StockCode ` Product ` Degree `
+`---:`---`---`---:`
+` 1 ` 85123A ` WHITE HANGING HEART T-LIGHT HOLDER ` 155 `
+` 2 ` 85099B ` JUMBO BAG RED WHITE SPOTTY ` 89 `
+` 3 ` 20725 ` LUNCH BAG RED SPOTTY ` 77 `
+` 4 ` 22423 ` REGENCY CAKESTAND 3 TIER ` 77 `
+` 5 ` 21212 ` PACK OF 72 RETRO SPOT CAKE CASES ` 56 `
 
 Degree represents the number of unique products connected to a product in the threshold-100 network.
 
@@ -819,13 +819,13 @@ These are exploratory interpretations and require additional retail context for 
 
 The strongest weighted product pairs include:
 
-| Rank | Source | Target | Weight |
-|---:|---|---|---:|
-| 1 | 22386 | 85099B | 914 |
-| 2 | 21733 | 85123A | 805 |
-| 3 | 21931 | 85099B | 761 |
-| 4 | 82482 | 82494L | 759 |
-| 5 | 85099B | 85099F | 725 |
+` Rank ` Source ` Target ` Weight `
+`---:`---`---`---:`
+` 1 ` 22386 ` 85099B ` 914 `
+` 2 ` 21733 ` 85123A ` 805 `
+` 3 ` 21931 ` 85099B ` 761 `
+` 4 ` 82482 ` 82494L ` 759 `
+` 5 ` 85099B ` 85099F ` 725 `
 
 Edge weight represents the number of invoices in which both products appeared together.
 
@@ -841,10 +841,10 @@ However, co-purchase frequency represents association and does not establish cau
 
 ## Threshold Comparison
 
-| Network | Threshold | Nodes | Edges | Main Finding |
-|---|---:|---:|---:|---|
-| Threshold-100 | >= 100 | 581 | 1,948 | Cleaner and more readable |
-| Threshold-30 | >= 30 | 1,653 | 20,065 | Dense hairball effect |
+` Network ` Threshold ` Nodes ` Edges ` Main Finding `
+`---`---:`---:`---:`---`
+` Threshold-100 ` >= 100 ` 581 ` 1,948 ` Cleaner and more readable `
+` Threshold-30 ` >= 30 ` 1,653 ` 20,065 ` Dense hairball effect `
 
 The comparison demonstrates a direct trade-off between:
 
