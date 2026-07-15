@@ -1,0 +1,809 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r, warning=FALSE, message=FALSE}
+library(dplyr)
+
+# Read the final analysis dataset
+airline <- read.csv(
+  "D:/data-portfolio/08_airline_service_performance_visual_analytics/data/processed/airline_performance_analysis.csv"
+)
+
+# Keep only network-level records
+network <- airline %>%
+  filter(Analysis_Level == "Network")
+
+# Overall network performance
+total_scheduled <- sum(network$Sectors_Scheduled)
+total_flown <- sum(network$Sectors_Flown)
+total_cancellations <- sum(network$Cancellations)
+
+departure_otp <- 
+  sum(network$Departures_On_Time) / total_flown * 100
+
+arrival_otp <- 
+  sum(network$Arrivals_On_Time) / total_flown * 100
+
+cancellation_rate <- 
+  total_cancellations / total_scheduled * 100
+
+cat("Total sectors scheduled:", total_scheduled, "\n")
+cat("Total sectors flown:", total_flown, "\n")
+cat("Weighted departure OTP:", round(departure_otp, 1), "%\n")
+cat("Weighted arrival OTP:", round(arrival_otp, 1), "%\n")
+cat("Overall cancellation rate:", round(cancellation_rate, 2), "%\n")
+
+
+# Annual network cancellation rates
+annual_network <- network %>%
+  group_by(Year) %>%
+  summarise(
+    Sectors_Scheduled = sum(Sectors_Scheduled),
+    Cancellations = sum(Cancellations)
+  ) %>%
+  mutate(
+    Cancellation_Rate = 
+      Cancellations / Sectors_Scheduled * 100
+  )
+
+annual_network %>%
+  filter(Year %in% c(2020, 2021))
+
+
+# Calculate monthly performance
+monthly_network <- network %>%
+  mutate(
+    Departure_OTP = 
+      Departures_On_Time / Sectors_Flown * 100,
+    
+    Arrival_OTP = 
+      Arrivals_On_Time / Sectors_Flown * 100,
+    
+    Cancellation_Rate = 
+      Cancellations / Sectors_Scheduled * 100
+  )
+
+
+# Highest monthly cancellation rates
+monthly_network %>%
+  arrange(desc(Cancellation_Rate)) %>%
+  select(
+    Month,
+    Cancellation_Rate,
+    Sectors_Scheduled,
+    Cancellations
+  ) %>%
+  head(5)
+
+
+# Lowest monthly departure OTP
+monthly_network %>%
+  arrange(Departure_OTP) %>%
+  select(
+    Month,
+    Departure_OTP,
+    Arrival_OTP
+  ) %>%
+  head(5)
+```
+```{r, warning=FALSE, message=FALSE}
+# Annual network performance and activity
+annual_performance <- network %>%
+  group_by(Year) %>%
+  summarise(
+    Sectors_Scheduled = sum(Sectors_Scheduled),
+    Sectors_Flown = sum(Sectors_Flown),
+    Departures_On_Time = sum(Departures_On_Time),
+    Arrivals_On_Time = sum(Arrivals_On_Time),
+    Cancellations = sum(Cancellations)
+  ) %>%
+  mutate(
+    Departure_OTP =
+      Departures_On_Time / Sectors_Flown * 100,
+    
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100,
+    
+    Cancellation_Rate =
+      Cancellations / Sectors_Scheduled * 100
+  )
+
+# Show annual performance from 2018 onwards
+annual_performance %>%
+  filter(Year >= 2018) %>%
+  select(
+    Year,
+    Sectors_Scheduled,
+    Sectors_Flown,
+    Departure_OTP,
+    Arrival_OTP,
+    Cancellation_Rate
+  )
+```
+```{r, warning=FALSE, message=FALSE}
+# ------------------------------------------------------------
+# 4.2 Geographic airport performance
+# ------------------------------------------------------------
+
+# Keep only route-level records
+route_data <- airline %>%
+  filter(Analysis_Level == "Route")
+
+
+# Departure airport performance
+departure_airport <- route_data %>%
+  group_by(Departing_Port) %>%
+  summarise(
+    Sectors_Flown = sum(Sectors_Flown),
+    Departures_On_Time = sum(Departures_On_Time)
+  ) %>%
+  mutate(
+    Departure_OTP =
+      Departures_On_Time / Sectors_Flown * 100
+  )
+
+
+# Arrival airport performance
+arrival_airport <- route_data %>%
+  group_by(Arriving_Port) %>%
+  summarise(
+    Sectors_Flown = sum(Sectors_Flown),
+    Arrivals_On_Time = sum(Arrivals_On_Time)
+  ) %>%
+  mutate(
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100
+  )
+
+
+# Highest-volume departure airports
+departure_airport %>%
+  arrange(desc(Sectors_Flown)) %>%
+  select(
+    Departing_Port,
+    Sectors_Flown,
+    Departure_OTP
+  ) %>%
+  head(10)
+
+
+# Share of sectors flown by the three largest departure airports
+top_three_sectors <- departure_airport %>%
+  arrange(desc(Sectors_Flown)) %>%
+  head(3) %>%
+  summarise(
+    Sectors_Flown = sum(Sectors_Flown)
+  ) %>%
+  pull(Sectors_Flown)
+
+all_airport_sectors <- sum(departure_airport$Sectors_Flown)
+
+top_three_share <-
+  top_three_sectors / all_airport_sectors * 100
+
+cat(
+  "Share of sectors flown by top three departure airports:",
+  round(top_three_share, 1),
+  "%\n"
+)
+
+
+# Lowest departure OTP
+departure_airport %>%
+  arrange(Departure_OTP) %>%
+  select(
+    Departing_Port,
+    Sectors_Flown,
+    Departure_OTP
+  ) %>%
+  head(5)
+
+
+# Highest departure OTP
+departure_airport %>%
+  arrange(desc(Departure_OTP)) %>%
+  select(
+    Departing_Port,
+    Sectors_Flown,
+    Departure_OTP
+  ) %>%
+  head(5)
+
+
+# Lowest arrival OTP
+arrival_airport %>%
+  arrange(Arrival_OTP) %>%
+  select(
+    Arriving_Port,
+    Sectors_Flown,
+    Arrival_OTP
+  ) %>%
+  head(5)
+
+
+# Highest arrival OTP
+arrival_airport %>%
+  arrange(desc(Arrival_OTP)) %>%
+  select(
+    Arriving_Port,
+    Sectors_Flown,
+    Arrival_OTP
+  ) %>%
+  head(5)
+
+
+# Compare departure and arrival OTP for the same airport
+airport_comparison <- departure_airport %>%
+  rename(
+    Airport = Departing_Port,
+    Departure_Sectors_Flown = Sectors_Flown
+  ) %>%
+  select(
+    Airport,
+    Departure_Sectors_Flown,
+    Departure_OTP
+  ) %>%
+  inner_join(
+    arrival_airport %>%
+      rename(
+        Airport = Arriving_Port,
+        Arrival_Sectors_Flown = Sectors_Flown
+      ) %>%
+      select(
+        Airport,
+        Arrival_Sectors_Flown,
+        Arrival_OTP
+      ),
+    by = "Airport"
+  ) %>%
+  mutate(
+    OTP_Gap =
+      Arrival_OTP - Departure_OTP
+  )
+
+
+# Largest positive arrival minus departure OTP gaps
+airport_comparison %>%
+  arrange(desc(OTP_Gap)) %>%
+  head(5)
+
+
+# Largest negative arrival minus departure OTP gaps
+airport_comparison %>%
+  arrange(OTP_Gap) %>%
+  head(5)
+```
+```{r, warning=FALSE, message=FALSE}
+# ------------------------------------------------------------
+# 4.3 Airport performance across years
+# ------------------------------------------------------------
+
+# Calculate annual arrival OTP for each airport
+airport_year <- route_data %>%
+  group_by(Arriving_Port, Year) %>%
+  summarise(
+    Sectors_Flown = sum(Sectors_Flown),
+    Arrivals_On_Time = sum(Arrivals_On_Time),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100
+  ) %>%
+  filter(Year <= 2023)
+
+
+# Network arrival OTP by year
+network_year <- network %>%
+  filter(Year <= 2023) %>%
+  group_by(Year) %>%
+  summarise(
+    Sectors_Flown = sum(Sectors_Flown),
+    Arrivals_On_Time = sum(Arrivals_On_Time),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100
+  )
+
+
+# Show network arrival OTP around the major decline
+network_year %>%
+  filter(Year %in% c(2021, 2022, 2023)) %>%
+  select(
+    Year,
+    Arrival_OTP
+  ) %>%
+  mutate(
+    Arrival_OTP = round(Arrival_OTP, 1)
+  )
+
+
+# Compare airport performance between 2021 and 2022
+airport_2021 <- airport_year %>%
+  filter(Year == 2021) %>%
+  select(
+    Arriving_Port,
+    Arrival_OTP_2021 = Arrival_OTP
+  )
+
+airport_2022 <- airport_year %>%
+  filter(Year == 2022) %>%
+  select(
+    Arriving_Port,
+    Arrival_OTP_2022 = Arrival_OTP
+  )
+
+change_2021_2022 <- airport_2021 %>%
+  inner_join(
+    airport_2022,
+    by = "Arriving_Port"
+  ) %>%
+  mutate(
+    OTP_Change =
+      Arrival_OTP_2022 - Arrival_OTP_2021
+  )
+
+
+# Number of airports declining from 2021 to 2022
+cat(
+  "Airports compared between 2021 and 2022:",
+  nrow(change_2021_2022),
+  "\n"
+)
+
+cat(
+  "Airports with lower arrival OTP in 2022:",
+  sum(change_2021_2022$OTP_Change < 0),
+  "\n"
+)
+
+
+# Largest arrival OTP declines from 2021 to 2022
+change_2021_2022 %>%
+  arrange(OTP_Change) %>%
+  head(5) %>%
+  mutate(
+    Arrival_OTP_2021 = round(Arrival_OTP_2021, 1),
+    Arrival_OTP_2022 = round(Arrival_OTP_2022, 1),
+    OTP_Change = round(OTP_Change, 1)
+  )
+
+
+# Compare airport performance between 2022 and 2023
+airport_2023 <- airport_year %>%
+  filter(Year == 2023) %>%
+  select(
+    Arriving_Port,
+    Arrival_OTP_2023 = Arrival_OTP
+  )
+
+change_2022_2023 <- airport_2022 %>%
+  inner_join(
+    airport_2023,
+    by = "Arriving_Port"
+  ) %>%
+  mutate(
+    OTP_Change =
+      Arrival_OTP_2023 - Arrival_OTP_2022
+  )
+
+
+# Number of airports improving from 2022 to 2023
+cat(
+  "Airports compared between 2022 and 2023:",
+  nrow(change_2022_2023),
+  "\n"
+)
+
+cat(
+  "Airports with higher arrival OTP in 2023:",
+  sum(change_2022_2023$OTP_Change > 0),
+  "\n"
+)
+
+
+# Largest recoveries from 2022 to 2023
+change_2022_2023 %>%
+  arrange(desc(OTP_Change)) %>%
+  head(5) %>%
+  mutate(
+    Arrival_OTP_2022 = round(Arrival_OTP_2022, 1),
+    Arrival_OTP_2023 = round(Arrival_OTP_2023, 1),
+    OTP_Change = round(OTP_Change, 1)
+  )
+
+
+# Airports that declined while the network improved in 2023
+change_2022_2023 %>%
+  filter(OTP_Change < 0) %>%
+  arrange(OTP_Change) %>%
+  mutate(
+    Arrival_OTP_2022 = round(Arrival_OTP_2022, 1),
+    Arrival_OTP_2023 = round(Arrival_OTP_2023, 1),
+    OTP_Change = round(OTP_Change, 1)
+  )
+
+
+# Keep airports with a complete 2010-2023 annual record
+complete_airports <- airport_year %>%
+  group_by(Arriving_Port) %>%
+  filter(n_distinct(Year) == 14) %>%
+  ungroup()
+
+
+# Count persistent high and low annual performance
+airport_pattern <- complete_airports %>%
+  group_by(Arriving_Port) %>%
+  summarise(
+    Years_Observed = n_distinct(Year),
+    Years_Above_85 = sum(Arrival_OTP >= 85),
+    Years_Below_80 = sum(Arrival_OTP < 80),
+    Mean_Annual_OTP = mean(Arrival_OTP),
+    .groups = "drop"
+  )
+
+
+# Airports most frequently above 85% arrival OTP
+airport_pattern %>%
+  arrange(
+    desc(Years_Above_85),
+    desc(Mean_Annual_OTP)
+  ) %>%
+  head(5) %>%
+  mutate(
+    Mean_Annual_OTP = round(Mean_Annual_OTP, 1)
+  )
+
+
+# Airports most frequently below 80% arrival OTP
+airport_pattern %>%
+  arrange(
+    desc(Years_Below_80),
+    Mean_Annual_OTP
+  ) %>%
+  head(5) %>%
+  mutate(
+    Mean_Annual_OTP = round(Mean_Annual_OTP, 1)
+  )
+```
+```{r, warning=FALSE, message=FALSE}
+# ------------------------------------------------------------
+# 4.4 Monthly performance in 2023
+# ------------------------------------------------------------
+
+# Network monthly performance in 2023
+network_2023 <- network %>%
+  filter(Year == 2023) %>%
+  mutate(
+    Departure_OTP =
+      Departures_On_Time / Sectors_Flown * 100,
+    
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100,
+    
+    Cancellation_Rate =
+      Cancellations / Sectors_Scheduled * 100
+  ) %>%
+  arrange(Month_Number)
+
+
+# Show all network months in 2023
+network_2023 %>%
+  select(
+    Month_Number,
+    Month_Name,
+    Sectors_Flown,
+    Departure_OTP,
+    Arrival_OTP,
+    Cancellation_Rate
+  ) %>%
+  mutate(
+    Departure_OTP = round(Departure_OTP, 1),
+    Arrival_OTP = round(Arrival_OTP, 1),
+    Cancellation_Rate = round(Cancellation_Rate, 2)
+  )
+
+
+# Calculate monthly arrival OTP for each airport in 2023
+airport_month_2023 <- route_data %>%
+  filter(Year == 2023) %>%
+  group_by(
+    Arriving_Port,
+    Month_Number,
+    Month_Name
+  ) %>%
+  summarise(
+    Sectors_Flown = sum(Sectors_Flown),
+    Arrivals_On_Time = sum(Arrivals_On_Time),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100
+  )
+
+
+# Count airports below 70% arrival OTP in each month
+airport_month_summary <- airport_month_2023 %>%
+  group_by(
+    Month_Number,
+    Month_Name
+  ) %>%
+  summarise(
+    Airports_Observed = n(),
+    Airports_Below_70 =
+      sum(Arrival_OTP < 70),
+    Median_Arrival_OTP =
+      median(Arrival_OTP),
+    .groups = "drop"
+  ) %>%
+  arrange(Month_Number)
+
+
+airport_month_summary %>%
+  mutate(
+    Median_Arrival_OTP =
+      round(Median_Arrival_OTP, 1)
+  )
+
+
+# Identify the ten highest-volume arrival airports in 2023
+top_2023_airports <- airport_month_2023 %>%
+  group_by(Arriving_Port) %>%
+  summarise(
+    Annual_Sectors_Flown =
+      sum(Sectors_Flown),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(Annual_Sectors_Flown)) %>%
+  head(10) %>%
+  pull(Arriving_Port)
+
+
+# Lowest monthly OTP observations among the ten busiest airports
+airport_month_2023 %>%
+  filter(
+    Arriving_Port %in% top_2023_airports
+  ) %>%
+  arrange(Arrival_OTP) %>%
+  select(
+    Arriving_Port,
+    Month_Name,
+    Sectors_Flown,
+    Arrival_OTP
+  ) %>%
+  head(10) %>%
+  mutate(
+    Arrival_OTP =
+      round(Arrival_OTP, 1)
+  )
+```
+```{r, warning=FALSE, message=FALSE}
+# ------------------------------------------------------------
+# 4.5 Route and airline performance in 2023
+# ------------------------------------------------------------
+
+# Calculate the 2023 network OTP benchmarks
+network_2023_benchmark <- network %>%
+  filter(Year == 2023) %>%
+  summarise(
+    Sectors_Flown = sum(Sectors_Flown),
+    Departures_On_Time = sum(Departures_On_Time),
+    Arrivals_On_Time = sum(Arrivals_On_Time)
+  ) %>%
+  mutate(
+    Departure_OTP =
+      Departures_On_Time / Sectors_Flown * 100,
+    
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100
+  )
+
+departure_benchmark <-
+  network_2023_benchmark$Departure_OTP
+
+arrival_benchmark <-
+  network_2023_benchmark$Arrival_OTP
+
+cat(
+  "2023 network departure OTP benchmark:",
+  round(departure_benchmark, 1),
+  "%\n"
+)
+
+cat(
+  "2023 network arrival OTP benchmark:",
+  round(arrival_benchmark, 1),
+  "%\n"
+)
+
+
+# Calculate route performance in 2023
+route_2023 <- route_data %>%
+  filter(Year == 2023) %>%
+  group_by(Route) %>%
+  summarise(
+    Sectors_Scheduled = sum(Sectors_Scheduled),
+    Sectors_Flown = sum(Sectors_Flown),
+    Cancellations = sum(Cancellations),
+    Departures_On_Time = sum(Departures_On_Time),
+    Arrivals_On_Time = sum(Arrivals_On_Time),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Departure_OTP =
+      Departures_On_Time / Sectors_Flown * 100,
+    
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100,
+    
+    Cancellation_Rate =
+      Cancellations / Sectors_Scheduled * 100,
+    
+    OTP_Gap =
+      Arrival_OTP - Departure_OTP
+  )
+
+
+# Count routes relative to the 2023 network benchmarks
+cat(
+  "High departure and high arrival routes:",
+  sum(
+    route_2023$Departure_OTP >= departure_benchmark &
+    route_2023$Arrival_OTP >= arrival_benchmark
+  ),
+  "\n"
+)
+
+cat(
+  "Low departure and low arrival routes:",
+  sum(
+    route_2023$Departure_OTP < departure_benchmark &
+    route_2023$Arrival_OTP < arrival_benchmark
+  ),
+  "\n"
+)
+
+cat(
+  "High departure and low arrival routes:",
+  sum(
+    route_2023$Departure_OTP >= departure_benchmark &
+    route_2023$Arrival_OTP < arrival_benchmark
+  ),
+  "\n"
+)
+
+cat(
+  "Low departure and high arrival routes:",
+  sum(
+    route_2023$Departure_OTP < departure_benchmark &
+    route_2023$Arrival_OTP >= arrival_benchmark
+  ),
+  "\n"
+)
+
+
+# Highest-volume routes
+route_2023 %>%
+  arrange(desc(Sectors_Flown)) %>%
+  select(
+    Route,
+    Sectors_Flown,
+    Departure_OTP,
+    Arrival_OTP,
+    Cancellation_Rate
+  ) %>%
+  head(10) %>%
+  mutate(
+    Departure_OTP = round(Departure_OTP, 1),
+    Arrival_OTP = round(Arrival_OTP, 1),
+    Cancellation_Rate = round(Cancellation_Rate, 2)
+  )
+
+
+# Highest cancellation rates
+route_2023 %>%
+  arrange(desc(Cancellation_Rate)) %>%
+  select(
+    Route,
+    Sectors_Flown,
+    Departure_OTP,
+    Arrival_OTP,
+    Cancellation_Rate
+  ) %>%
+  head(10) %>%
+  mutate(
+    Departure_OTP = round(Departure_OTP, 1),
+    Arrival_OTP = round(Arrival_OTP, 1),
+    Cancellation_Rate = round(Cancellation_Rate, 2)
+  )
+
+
+# Largest positive OTP gaps
+route_2023 %>%
+  arrange(desc(OTP_Gap)) %>%
+  select(
+    Route,
+    Sectors_Flown,
+    Departure_OTP,
+    Arrival_OTP,
+    OTP_Gap
+  ) %>%
+  head(5) %>%
+  mutate(
+    Departure_OTP = round(Departure_OTP, 1),
+    Arrival_OTP = round(Arrival_OTP, 1),
+    OTP_Gap = round(OTP_Gap, 1)
+  )
+
+
+# Largest negative OTP gaps
+route_2023 %>%
+  arrange(OTP_Gap) %>%
+  select(
+    Route,
+    Sectors_Flown,
+    Departure_OTP,
+    Arrival_OTP,
+    OTP_Gap
+  ) %>%
+  head(5) %>%
+  mutate(
+    Departure_OTP = round(Departure_OTP, 1),
+    Arrival_OTP = round(Arrival_OTP, 1),
+    OTP_Gap = round(OTP_Gap, 1)
+  )
+
+
+# Calculate airline performance in 2023
+airline_2023 <- airline %>%
+  filter(
+    Analysis_Level == "Airline",
+    Year == 2023
+  ) %>%
+  group_by(Airline) %>%
+  summarise(
+    Sectors_Scheduled = sum(Sectors_Scheduled),
+    Sectors_Flown = sum(Sectors_Flown),
+    Cancellations = sum(Cancellations),
+    Departures_On_Time = sum(Departures_On_Time),
+    Arrivals_On_Time = sum(Arrivals_On_Time),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    Departure_OTP =
+      Departures_On_Time / Sectors_Flown * 100,
+    
+    Arrival_OTP =
+      Arrivals_On_Time / Sectors_Flown * 100,
+    
+    Cancellation_Rate =
+      Cancellations / Sectors_Scheduled * 100,
+    
+    OTP_Gap =
+      Arrival_OTP - Departure_OTP
+  )
+
+
+# Compare all airlines
+airline_2023 %>%
+  arrange(desc(Departure_OTP)) %>%
+  select(
+    Airline,
+    Sectors_Flown,
+    Departure_OTP,
+    Arrival_OTP,
+    Cancellation_Rate,
+    OTP_Gap
+  ) %>%
+  mutate(
+    Departure_OTP = round(Departure_OTP, 1),
+    Arrival_OTP = round(Arrival_OTP, 1),
+    Cancellation_Rate = round(Cancellation_Rate, 2),
+    OTP_Gap = round(OTP_Gap, 1)
+  )
+```
