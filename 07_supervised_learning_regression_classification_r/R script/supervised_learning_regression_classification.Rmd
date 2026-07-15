@@ -1,0 +1,1010 @@
+---
+title: "COMP2025 Introduction to Data Science — Assignment 1"
+author: "Pham Minh Khoi"
+date: "2026-06-20"
+output:
+  pdf_document:
+    toc: false
+    number_sections: false
+  html_document:
+    toc: false
+    number_sections: false
+  word_document:
+    toc: false
+---
+
+# Declaration
+
+By submitting this work I certify that: no part of it has been copied from another student or any other source except where acknowledged; no part was written or produced for me by another person except as authorised by the lecturer; I have disclosed all use of generative-AI tools in the Reflection Log; and I understand this work may be checked by plagiarism- and AI-detection software.
+
+Signed (typed name): Pham Minh Khoi  
+Student ID: 22145599  
+Date: `r Sys.Date()`
+
+# 0. Setup and Reproducibility
+
+This section records the R environment, required packages, personalised seed, and data files used in this report. These details make the analysis reproducible, especially for random procedures such as cross-validation and train-test splitting.
+
+**a) R environment and packages**
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+```
+
+```{r packages}
+library(boot)
+library(pROC)
+```
+
+```{r r-environment}
+R.version.string
+packageVersion("boot")
+packageVersion("pROC")
+```
+
+The output above records the R version and package versions used in this analysis. The `boot` package is used later for 10-fold cross-validation, while the `pROC` package is used later to produce the ROC curve and calculate AUC for the classification model.
+
+**b) Personalised seed**
+
+```{r personalised-seed}
+D <- 599
+set.seed(D)
+
+D
+```
+
+The personalised seed value is **599**, which is the last three digits of Student ID **22145599**. The command `set.seed(599)` is used wherever a random procedure is required. In this assignment, the seed affects the 10-fold cross-validation in Question 1, the 80/20 train-test split in Question 2, and the 10-fold cross-validation in Question 2.
+
+**c) Data files used**
+
+```{r data-files-used}
+energy_file <- "D:/data-portfolio/07_learner_retention_analytics_r/data/energy_homes.csv"
+learners_file <- "D:/data-portfolio/07_learner_retention_analytics_r/data/learners.csv"
+
+file.exists(energy_file)
+file.exists(learners_file)
+```
+
+Both required data files were found successfully, as shown by the two `TRUE` outputs. The file `energy_homes.csv` is used for Question 1, which is the regression task predicting `heating_load`. The file `learners.csv` is used for Question 2, which is the classification task predicting whether a learner completed the course.
+
+# 1. Question 1 — Regression
+
+This question uses `energy_homes.csv` to model `heating_load`, which is the annual heating energy demand per unit floor area. The goal is to understand how building design variables are related to heating demand.
+
+## 1.1 Exploration and Data Thinking
+
+**a) Data import, dimensions, and missing values**
+
+```{r q1-1-a-import-energy}
+energy <- read.csv("D:/data-portfolio/07_learner_retention_analytics_r/data/energy_homes.csv")
+
+dim(energy)
+names(energy)
+str(energy)
+colSums(is.na(energy))
+```
+
+The `energy_homes.csv` dataset contains **768 rows** and **12 columns**. Each row represents one simulated residential building. The columns include one identifier variable, ten predictor variables, and one response variable, `heating_load`. The missing-value check shows that every column has **0 missing values**, so no rows need to be removed and no imputation is required.
+
+```{r q1-1-a-variable-roles}
+response <- "heating_load"
+
+predictors <- c(
+  "relative_compactness",
+  "surface_area",
+  "wall_area",
+  "roof_area",
+  "overall_height",
+  "orientation",
+  "glazing_area",
+  "glazing_distribution",
+  "wall_insul_rating",
+  "window_age"
+)
+
+response
+predictors
+```
+
+The response variable is `heating_load`, which measures annual heating demand in kWh/m². The variable `home_id` is only a building identifier, so it is not used as a predictor. The ten predictors used in this question are the building design variables listed in the output above.
+
+**b) Scatterplot matrix, correlation matrix, and key relationships**
+
+```{r q1-1-b-scatterplot-matrix, fig.height=10, fig.width=10}
+energy_for_plots <- energy[, c(predictors, response)]
+
+pairs(
+  energy_for_plots,
+  main = "Scatterplot Matrix of Heating Load and Predictors",
+  pch = 19,
+  cex = 0.18,
+  cex.labels = 0.7
+)
+```
+
+The scatterplot matrix provides an initial visual overview of the relationships between `heating_load` and the ten predictors. Because several predictors are coded or discrete variables, such as `orientation`, `overall_height`, `glazing_area`, and `glazing_distribution`, some panels appear as vertical or horizontal bands rather than smooth clouds of points. This is expected and does not indicate an error.
+
+```{r q1-1-b-correlation-matrix}
+cor_matrix <- cor(energy_for_plots)
+
+round(cor_matrix, 3)
+```
+
+```{r q1-1-b-correlation-with-heating}
+cor_with_heating <- cor_matrix["heating_load", predictors]
+
+round(cor_with_heating, 3)
+
+ranked_correlations <- sort(abs(cor_with_heating), decreasing = TRUE)
+
+round(ranked_correlations, 3)
+```
+
+Based on the correlations with `heating_load`, the strongest linear relationship is with `overall_height`, with a correlation of approximately **0.647**. This positive correlation suggests that taller buildings tend to have higher heating load in this dataset. The second strongest relationship is with `relative_compactness`, with a correlation of approximately **-0.520**, meaning more compact buildings tend to have lower heating load. By contrast, `orientation` has a correlation of approximately **0.009**, which is almost zero, so it appears to have essentially no linear relationship with heating demand. `window_age` is also very weak, with a correlation of approximately **0.033**.
+
+**c) Bias–variance discussion**
+
+A model using only the strongest predictor, `overall_height`, would likely have **relatively high bias but low variance**. It would have low variance because a one-predictor model is simple and its predictions are less sensitive to small changes in the training data. However, it would likely have high bias because `heating_load` is also related to other predictors, especially `relative_compactness`, `surface_area`, and `wall_insul_rating`, so using only `overall_height` would ignore important building-design information.
+
+## 1.2 Simple Linear and Polynomial Regression
+
+**a) Simple linear regression model and estimated equation**
+
+```{r q1-2-a-simple-linear-model}
+simple_model <- lm(heating_load ~ relative_compactness, data = energy)
+
+summary(simple_model)
+```
+
+```{r q1-2-a-simple-equation}
+coef(simple_model)
+```
+
+A simple linear regression model was fitted to predict `heating_load` from `relative_compactness`. The estimated regression equation is:
+
+**Predicted heating_load = 130.871 - 55.906 * relative_compactness**
+
+This means that the predicted heating load decreases as `relative_compactness` increases. This model is used as a baseline because it uses only one predictor to explain heating demand.
+
+**b) Hypothesis test and slope interpretation**
+
+For the slope of `relative_compactness`, the hypotheses are:
+
+H0: beta_1 = 0. There is no linear relationship between `relative_compactness` and `heating_load`.
+
+H1: beta_1 is not equal to 0. There is a non-zero linear relationship between `relative_compactness` and `heating_load`.
+
+```{r q1-2-b-slope-test}
+summary(simple_model)$coefficients
+```
+
+The p-value for `relative_compactness` is approximately **1.96e-54**, which is far below 0.05. Therefore, the null hypothesis is rejected. There is strong statistical evidence that `relative_compactness` is a significant linear predictor of `heating_load`.
+
+The slope for `relative_compactness` is approximately **-55.906**. This means that a one-unit increase in `relative_compactness` is associated with an estimated **55.906 kWh/m² decrease** in annual heating demand. Since a full one-unit increase is large on the compactness scale, a more practical interpretation is that a 0.1 increase in `relative_compactness` is associated with an estimated decrease of about **5.591 kWh/m²**.
+
+**c) Standard error and 95% confidence interval**
+
+```{r q1-2-c-standard-error-ci}
+summary(simple_model)$coefficients["relative_compactness", "Std. Error"]
+
+confint(simple_model)["relative_compactness", ]
+```
+
+The standard error of the slope is approximately **3.318**. The 95% confidence interval for the slope is approximately **[-62.419, -49.393]**.
+
+This confidence interval does not include zero, which supports the conclusion that `relative_compactness` is statistically significant. The interval is reasonably narrow relative to the size of the slope, suggesting that the estimate is fairly precise.
+
+**d) R², residual standard error, and adequacy for design decisions**
+
+```{r q1-2-d-r2-rse}
+summary(simple_model)$r.squared
+summary(simple_model)$adj.r.squared
+summary(simple_model)$sigma
+```
+
+The R-squared value is approximately **0.270**, meaning that `relative_compactness` alone explains about **27.0%** of the variation in `heating_load`.
+
+The residual standard error is approximately **9.428 kWh/m²**, so predictions from this model are typically about 9.428 kWh/m² away from the actual heating load values. This single-predictor model is useful as a baseline, but it is probably not adequate for design decisions because around 73% of the variation remains unexplained.
+
+**e) Diagnostic plots and model assumptions**
+
+```{r q1-2-e-diagnostic-plots, fig.height=4.5, fig.width=12}
+par(mfrow = c(1, 3))
+
+plot(simple_model, which = 1)
+plot(simple_model, which = 2)
+plot(simple_model, which = 3)
+
+par(mfrow = c(1, 1))
+```
+
+The residuals vs fitted plot shows some visible pattern rather than a completely random cloud, so the linearity assumption is not fully satisfied.
+
+The Normal Q-Q plot shows that most residuals are reasonably close to the straight line, although there are some departures at the tails, so the normality assumption is broadly acceptable but not perfect.
+
+The scale-location plot shows some variation in residual spread across fitted values, so the constant-variance assumption is not fully satisfied. Overall, the simple linear model is useful as a baseline, but it does not fully capture the structure in the data.
+
+**f) Polynomial regression for `glazing_area` and model selection**
+
+```{r q1-2-f-polynomial-models}
+poly_1 <- lm(heating_load ~ poly(glazing_area, 1, raw = TRUE), data = energy)
+poly_2 <- lm(heating_load ~ poly(glazing_area, 2, raw = TRUE), data = energy)
+poly_3 <- lm(heating_load ~ poly(glazing_area, 3, raw = TRUE), data = energy)
+poly_4 <- lm(heating_load ~ poly(glazing_area, 4, raw = TRUE), data = energy)
+poly_5 <- lm(heating_load ~ poly(glazing_area, 5, raw = TRUE), data = energy)
+
+poly_results <- data.frame(
+  Order = c(1, 2, 3, 4, 5),
+  Adjusted_R_Squared = c(
+    summary(poly_1)$adj.r.squared,
+    summary(poly_2)$adj.r.squared,
+    summary(poly_3)$adj.r.squared,
+    summary(poly_4)$adj.r.squared,
+    summary(poly_5)$adj.r.squared
+  ),
+  AIC = c(
+    AIC(poly_1),
+    AIC(poly_2),
+    AIC(poly_3),
+    AIC(poly_4),
+    AIC(poly_5)
+  )
+)
+
+poly_results
+```
+
+Polynomial regression models of orders 1 to 5 were fitted to examine whether the relationship between `glazing_area` and `heating_load` is better represented by a curved relationship rather than a straight line. Adjusted R-squared and AIC are used because they consider both model fit and model complexity.
+
+Based on the polynomial model comparison, the order 2 polynomial is preferred. The adjusted R-squared increases from approximately **0.021** for order 1 to approximately **0.058** for order 2, and AIC decreases from approximately **5854.8** to approximately **5826.1**. Higher-order models do not provide a meaningful improvement, because orders 3, 4, and 5 have slightly lower adjusted R-squared and higher AIC than the order 2 model. Therefore, order 2 gives the best balance between fit and unnecessary complexity.
+
+## 1.3 Multiple Regression and Interaction
+
+**a) Full multiple regression and reduced Model A**
+
+```{r q1-3-a-full-model}
+full_model <- lm(
+  heating_load ~ relative_compactness + surface_area + wall_area +
+    roof_area + overall_height + orientation + glazing_area +
+    glazing_distribution + wall_insul_rating + window_age,
+  data = energy
+)
+
+summary(full_model)
+```
+
+The full multiple regression model uses all ten building-design predictors to explain `heating_load`. Unlike the simple linear regression model, this model estimates the relationship between each predictor and `heating_load` while holding the other predictors constant.
+
+```{r q1-3-a-pvalues}
+full_pvalues <- summary(full_model)$coefficients[, "Pr(>|t|)"]
+
+full_pvalues
+```
+
+```{r q1-3-a-insignificant}
+insignificant_predictors <- names(full_pvalues[full_pvalues >= 0.05])
+insignificant_predictors <- insignificant_predictors[insignificant_predictors != "(Intercept)"]
+
+insignificant_predictors
+```
+
+In the full model, the predictors with p-values greater than or equal to 0.05 are `glazing_distribution` and `window_age`. These predictors are treated as statistically insignificant at the 5% level and are removed from the reduced model. The variable `orientation` is retained because its p-value is below 0.05 in the full model.
+
+```{r q1-3-a-model-a}
+model_A <- lm(
+  heating_load ~ relative_compactness + surface_area + wall_area +
+    roof_area + overall_height + orientation + glazing_area +
+    wall_insul_rating,
+  data = energy
+)
+
+summary(model_A)
+```
+
+Model A is the reduced multiple regression model. It removes `glazing_distribution` and `window_age` from the full model while keeping the predictors that are statistically significant at the 5% level. Model A is therefore simpler than the full model but still keeps the main building-design variables that help explain `heating_load`.
+
+**b) Interaction Model B and interpretation**
+
+```{r q1-3-b-model-b}
+model_B <- lm(
+  heating_load ~ relative_compactness + surface_area + wall_area +
+    roof_area + overall_height + orientation + glazing_area +
+    wall_insul_rating + wall_area:glazing_area,
+  data = energy
+)
+
+summary(model_B)
+```
+
+Model B extends Model A by adding an interaction term between `wall_area` and `glazing_area`. This interaction tests whether the effect of `glazing_area` on `heating_load` changes depending on the value of `wall_area`.
+
+```{r q1-3-b-interaction-result}
+summary(model_B)$coefficients["wall_area:glazing_area", ]
+```
+
+The interaction term between `wall_area` and `glazing_area` is statistically significant, with a p-value of approximately **0.0035**. The interaction coefficient is positive, approximately **0.051**, meaning that the effect of `glazing_area` on `heating_load` becomes stronger as `wall_area` increases. In practical building-design terms, additional glazing is associated with a different heating-load effect for buildings with larger wall areas compared with buildings with smaller wall areas.
+
+**c) Diagnostic checks for Model B**
+
+```{r q1-3-c-model-b-diagnostics, fig.height=4.5, fig.width=12}
+par(mfrow = c(1, 3))
+
+plot(model_B, which = 1)
+plot(model_B, which = 2)
+plot(model_B, which = 3)
+
+par(mfrow = c(1, 1))
+```
+
+The residuals vs fitted plot for Model B shows residuals mostly centred around zero, although there is still some visible structure. This suggests that the linearity assumption is reasonably acceptable but not perfect.
+
+The Normal Q-Q plot shows that most residuals follow the straight line, with some departures at the tails. This suggests that the normality assumption is broadly acceptable but not perfect.
+
+The scale-location plot shows a reasonably even spread of residuals across fitted values, although some variation remains. Overall, the diagnostic plots suggest that Model B is acceptable for this assignment, but the regression assumptions are not perfectly satisfied.
+
+**d) Model A versus Model B recommendation**
+
+```{r q1-3-d-compare-models}
+model_comparison <- data.frame(
+  Model = c("Model A", "Model B"),
+  Adjusted_R_Squared = c(
+    summary(model_A)$adj.r.squared,
+    summary(model_B)$adj.r.squared
+  ),
+  Residual_Standard_Error = c(
+    summary(model_A)$sigma,
+    summary(model_B)$sigma
+  ),
+  AIC = c(
+    AIC(model_A),
+    AIC(model_B)
+  )
+)
+
+model_comparison
+```
+
+Model A and Model B are compared using adjusted R-squared, residual standard error, and AIC. Adjusted R-squared is preferred over ordinary R-squared because it accounts for the number of predictors. Residual standard error measures the typical prediction error in kWh/m². AIC compares model fit while penalising unnecessary complexity.
+
+Based on the comparison, Model B is recommended. Model B has a higher adjusted R-squared, a lower residual standard error, and a lower AIC than Model A. This means Model B provides a slightly better balance between model fit and complexity. For a project manager, Model B is preferable because it improves prediction performance while also capturing the practical idea that the effect of glazing area depends on wall area.
+
+## 1.4 Honest Model Comparison by Cross-Validation
+
+**a) 10-fold CV MSE for Model A and Model B**
+
+```{r q1-4-a-cv-model-a-b}
+model_A_glm <- glm(
+  formula(model_A),
+  data = energy,
+  family = gaussian
+)
+
+model_B_glm <- glm(
+  formula(model_B),
+  data = energy,
+  family = gaussian
+)
+
+set.seed(D)
+cv_model_A <- cv.glm(
+  data = energy,
+  glmfit = model_A_glm,
+  K = 10
+)
+
+set.seed(D)
+cv_model_B <- cv.glm(
+  data = energy,
+  glmfit = model_B_glm,
+  K = 10
+)
+
+cv_model_results <- data.frame(
+  Model = c("Model A", "Model B"),
+  CV_MSE = c(
+    cv_model_A$delta[1],
+    cv_model_B$delta[1]
+  )
+)
+
+cv_model_results
+```
+
+The 10-fold cross-validation results compare Model A and Model B using cross-validated mean squared error. A lower CV MSE indicates better estimated prediction performance on unseen data. The seed value `D = 599` is used before each cross-validation run so that the fold allocation is reproducible.
+
+Model B has a slightly lower CV MSE than Model A, with **10.754** compared with **10.841**. Therefore, Model B is preferred from a prediction-performance perspective. This agrees with the earlier adjusted R-squared, residual standard error, and AIC comparison, which also favoured Model B. The improvement is small, but Model B is still the better model because it gives the lower estimated out-of-sample prediction error.
+
+**b) 10-fold CV comparison for polynomial orders 1 to 5**
+
+```{r q1-4-b-cv-polynomial}
+poly_1_glm <- glm(
+  formula(poly_1),
+  data = energy,
+  family = gaussian
+)
+
+poly_2_glm <- glm(
+  formula(poly_2),
+  data = energy,
+  family = gaussian
+)
+
+poly_3_glm <- glm(
+  formula(poly_3),
+  data = energy,
+  family = gaussian
+)
+
+poly_4_glm <- glm(
+  formula(poly_4),
+  data = energy,
+  family = gaussian
+)
+
+poly_5_glm <- glm(
+  formula(poly_5),
+  data = energy,
+  family = gaussian
+)
+
+set.seed(D)
+cv_poly_1 <- cv.glm(
+  data = energy,
+  glmfit = poly_1_glm,
+  K = 10
+)
+
+set.seed(D)
+cv_poly_2 <- cv.glm(
+  data = energy,
+  glmfit = poly_2_glm,
+  K = 10
+)
+
+set.seed(D)
+cv_poly_3 <- cv.glm(
+  data = energy,
+  glmfit = poly_3_glm,
+  K = 10
+)
+
+set.seed(D)
+cv_poly_4 <- cv.glm(
+  data = energy,
+  glmfit = poly_4_glm,
+  K = 10
+)
+
+set.seed(D)
+cv_poly_5 <- cv.glm(
+  data = energy,
+  glmfit = poly_5_glm,
+  K = 10
+)
+
+poly_cv_results <- data.frame(
+  Order = c(1, 2, 3, 4, 5),
+  CV_MSE = c(
+    cv_poly_1$delta[1],
+    cv_poly_2$delta[1],
+    cv_poly_3$delta[1],
+    cv_poly_4$delta[1],
+    cv_poly_5$delta[1]
+  ),
+  Adjusted_R_Squared = c(
+    summary(poly_1)$adj.r.squared,
+    summary(poly_2)$adj.r.squared,
+    summary(poly_3)$adj.r.squared,
+    summary(poly_4)$adj.r.squared,
+    summary(poly_5)$adj.r.squared
+  )
+)
+
+poly_cv_results
+
+best_poly_order <- poly_cv_results$Order[
+  which.min(poly_cv_results$CV_MSE)
+]
+
+best_poly_order
+```
+
+The polynomial models are compared again using 10-fold cross-validated MSE. This gives an out-of-sample comparison of polynomial orders 1 to 5, rather than relying only on adjusted R-squared from the training data.
+
+The lowest CV MSE is achieved by the order 2 polynomial model, with a CV MSE of approximately **114.931**. The order 1 model has a higher CV MSE of approximately **119.447**, while orders 3, 4, and 5 have CV MSE values of approximately **115.216**. Therefore, the 10-fold cross-validation result supports the same conclusion as Section 1.2: the order 2 polynomial provides the best balance for modelling the relationship between `glazing_area` and `heating_load`.
+
+These polynomial CV MSE values should be compared only among the polynomial models, because these models use only `glazing_area` as the predictor. They are not directly comparable with Model A and Model B, which use multiple predictors.
+
+**c) Why cross-validated MSE is more trustworthy than training R²**
+
+Training R-squared measures how well a model fits the same data used to estimate its coefficients. Because of this, training R-squared can be overly optimistic, especially when a model becomes more complex. Adding more predictors or higher-order polynomial terms can improve training fit even when those extra terms do not improve prediction on new data.
+
+Cross-validated MSE is more trustworthy for model comparison because it evaluates prediction error on held-out folds. In 10-fold cross-validation, the data are split into ten parts. The model is repeatedly trained on nine parts and tested on the remaining part. This process gives a better estimate of how the model is likely to perform on unseen observations.
+
+In this report, cross-validation supports the same choices as the earlier training-fit comparisons: Model B has a lower CV MSE than Model A (**10.754 versus 10.841**), and the order 2 polynomial has the lowest CV MSE among orders 1 to 5 (**114.931**). This strengthens the recommendation because the selected models also perform better under held-out validation.
+
+# 2. Question 2 — Classification
+
+This question uses `learners.csv` to predict whether a learner completed the course. Because the response variable `completed` is categorical, this is a classification task rather than a regression task.
+
+## 2.1 Cleaning and Splitting
+
+**a) Missing values and cleaning decision**
+
+```{r q2-1-a-import-learners}
+learners <- read.csv("D:/data-portfolio/07_learner_retention_analytics_r/data/learners.csv", stringsAsFactors = FALSE)
+
+dim(learners)
+names(learners)
+str(learners)
+head(learners)
+```
+
+```{r q2-1-a-missing-check}
+for (col in names(learners)) {
+  if (is.character(learners[[col]])) {
+    learners[[col]][learners[[col]] == ""] <- NA
+  }
+}
+
+colSums(is.na(learners))
+sum(is.na(learners))
+```
+
+The `learners.csv` dataset contains `r nrow(learners)` rows and `r ncol(learners)` columns. Blank text values were treated as missing values before checking missingness.
+
+```{r q2-1-a-cleaning}
+learners_clean <- learners[!is.na(learners$completed), ]
+
+get_mode <- function(x) {
+  x <- x[!is.na(x)]
+  names(sort(table(x), decreasing = TRUE))[1]
+}
+
+for (col in names(learners_clean)) {
+  if (col != "completed") {
+    if (is.numeric(learners_clean[[col]])) {
+      learners_clean[[col]][is.na(learners_clean[[col]])] <- median(
+        learners_clean[[col]],
+        na.rm = TRUE
+      )
+    } else {
+      mode_value <- get_mode(learners_clean[[col]])
+      learners_clean[[col]][is.na(learners_clean[[col]])] <- mode_value
+    }
+  }
+}
+
+colSums(is.na(learners_clean))
+sum(is.na(learners_clean))
+dim(learners_clean)
+```
+
+Rows with missing `completed` values are removed because the response variable should not be imputed in a supervised classification task. For predictor variables, missing numeric values are replaced with the median, and missing categorical values are replaced with the most common category. This keeps as many usable learner records as possible while avoiding missing values in the modelling stage.
+
+**b) Factor conversion, completion rate, and class balance**
+
+```{r q2-1-b-factor-conversion}
+for (col in names(learners_clean)) {
+  if (is.character(learners_clean[[col]]) && col != "learner_id") {
+    learners_clean[[col]] <- factor(learners_clean[[col]])
+  }
+}
+
+learners_clean$completed <- factor(
+  learners_clean$completed,
+  levels = c("no", "yes")
+)
+
+q2_response <- "completed"
+
+q2_predictors <- names(learners_clean)[
+  !(names(learners_clean) %in% c("learner_id", "completed"))
+]
+
+str(learners_clean)
+levels(learners_clean$completed)
+
+q2_response
+q2_predictors
+```
+
+```{r q2-1-b-completion-rate}
+completion_table <- table(learners_clean$completed)
+completion_rate <- prop.table(completion_table)
+
+completion_table
+round(completion_rate, 3)
+```
+
+Categorical predictor variables are converted to factors so that R treats them as categories rather than continuous numeric variables. The response variable `completed` is also converted to a factor with `no` as the first level and `yes` as the second level. The variable `learner_id` is kept as an identifier and is not used as a predictor in the classification model.
+
+The completion table and completion-rate output show the class distribution of the response variable. This check is important because class imbalance can make accuracy misleading. In this dataset, the two classes are reasonably balanced rather than extremely imbalanced, so accuracy is useful, but it should still be reported together with sensitivity, specificity, and AUC in the model evaluation stage.
+
+**c) Personalised 80/20 train-test split**
+
+```{r q2-1-c-train-test-split}
+set.seed(D)
+
+train_rows <- c()
+
+for (class_level in levels(learners_clean$completed)) {
+  class_rows <- which(learners_clean$completed == class_level)
+  
+  class_train_rows <- sample(
+    class_rows,
+    size = floor(0.8 * length(class_rows))
+  )
+  
+  train_rows <- c(train_rows, class_train_rows)
+}
+
+train_rows <- sort(train_rows)
+
+learners_train <- learners_clean[train_rows, ]
+learners_test <- learners_clean[-train_rows, ]
+
+dim(learners_train)
+dim(learners_test)
+```
+
+```{r q2-1-c-split-balance-check}
+table(learners_train$completed)
+round(prop.table(table(learners_train$completed)), 3)
+
+table(learners_test$completed)
+round(prop.table(table(learners_test$completed)), 3)
+```
+
+The dataset is split into an 80% training set and a 20% test set using the personalised seed value `D = 599`. The split is stratified by `completed`, meaning that each completion class is sampled separately. This helps keep the class distribution in the training and test sets similar to the original dataset.
+
+The training set is used to fit the logistic regression model, while the test set is held out for model evaluation. This avoids evaluating the model only on the same data used for training.
+
+## 2.2 Logistic Regression and Test Set Evaluation
+
+**a) Full logistic regression model**
+
+```{r q2-2-a-full-logistic-model}
+full_logit <- glm(
+  completed ~ age + prior_score + prior_courses + weekly_hours +
+    videos_watched + assignments_done + quiz_avg + forum_posts +
+    logins_per_week + support_tickets + days_since_signup +
+    signup_hour + plan + device + region + email_verified,
+  data = learners_train,
+  family = binomial
+)
+
+summary(full_logit)
+```
+
+The full logistic regression model uses all learner-behaviour, background, and account-related predictors to predict whether a learner completed the course. The identifier variable `learner_id` is not included because it is only a learner ID and does not provide meaningful predictive information.
+
+```{r q2-2-a-full-pvalues}
+full_logit_pvalues <- summary(full_logit)$coefficients[, "Pr(>|z|)"]
+
+full_logit_pvalues
+```
+
+At the 5% significance level, the full logistic regression model suggests that several learner-engagement and performance variables are useful predictors of course completion. These include `prior_score`, `prior_courses`, `weekly_hours`, `videos_watched`, `assignments_done`, `quiz_avg`, and `logins_per_week`. Some categorical levels, such as `planfree` and `devicemobile`, also show statistical evidence of association with course completion.
+
+By contrast, several variables have weaker statistical evidence in the full model, including `age`, `forum_posts`, `support_tickets`, `days_since_signup`, `signup_hour`, most `region` levels, and `email_verified`. These weaker predictors are not kept in the refined final model.
+
+**b) Refined final logistic model**
+
+```{r q2-2-b-final-logistic-model}
+final_logit <- glm(
+  completed ~ prior_score + prior_courses + weekly_hours +
+    videos_watched + assignments_done + quiz_avg +
+    logins_per_week + plan + device,
+  data = learners_train,
+  family = binomial
+)
+
+summary(final_logit)
+```
+
+The refined final logistic regression model keeps the main predictors with stronger evidence from the full model. It includes learner performance variables, engagement variables, plan type, and device type. Predictors with weaker evidence in the full model are removed to make the final model easier to interpret and less unnecessarily complex.
+
+```{r q2-2-b-final-pvalues}
+summary(final_logit)$coefficients
+```
+
+The final model is used for test-set prediction and evaluation. In logistic regression, coefficients are estimated on the log-odds scale, so odds ratios are also calculated to make the interpretation easier.
+
+**c) Odds ratio interpretation**
+
+```{r q2-2-c-odds-ratios}
+odds_ratios <- exp(coef(final_logit))
+
+odds_ratios
+```
+
+An odds ratio greater than 1 means that higher values of the predictor are associated with higher odds of course completion, holding the other variables constant. An odds ratio below 1 means that higher values of the predictor are associated with lower odds of course completion, holding the other variables constant. An odds ratio is not the same as a probability ratio; it describes changes in odds, not direct changes in probability.
+
+```{r q2-2-c-selected-odds-ratios}
+odds_ratios["assignments_done"]
+odds_ratios["devicemobile"]
+```
+
+For the numeric predictor `assignments_done`, the odds ratio is approximately **1.323**. Holding the other predictors constant, each additional completed assignment multiplies the odds of course completion by about **1.323**. In other words, one extra completed assignment is associated with approximately **32.3% higher odds** of completion.
+
+For the categorical predictor `devicemobile`, the odds ratio is approximately **0.765**. Since `desktop` is the reference device group, this means that, holding the other predictors constant, mobile-device learners have about **0.765 times the odds** of completion compared with desktop-device learners. This is approximately **23.5% lower odds** of completion. These are odds ratios, not probability ratios, so they should not be interpreted as direct percentage changes in probability.
+
+**d) Test set prediction, confusion matrix, accuracy, sensitivity, and specificity**
+
+```{r q2-2-d-test-prediction}
+test_prob <- predict(
+  final_logit,
+  newdata = learners_test,
+  type = "response"
+)
+
+test_pred <- ifelse(test_prob >= 0.5, "yes", "no")
+
+test_pred <- factor(
+  test_pred,
+  levels = c("no", "yes")
+)
+
+confusion_matrix <- table(
+  Actual = learners_test$completed,
+  Predicted = test_pred
+)
+
+confusion_matrix
+```
+
+```{r q2-2-d-metrics}
+tn <- confusion_matrix["no", "no"]
+fp <- confusion_matrix["no", "yes"]
+fn <- confusion_matrix["yes", "no"]
+tp <- confusion_matrix["yes", "yes"]
+
+accuracy <- (tp + tn) / sum(confusion_matrix)
+sensitivity <- tp / (tp + fn)
+specificity <- tn / (tn + fp)
+
+accuracy
+sensitivity
+specificity
+```
+
+The test-set predictions are created using a probability threshold of 0.5. If the predicted probability of completion is at least 0.5, the learner is classified as `yes`; otherwise, the learner is classified as `no`.
+
+Accuracy measures the overall proportion of correct predictions. Sensitivity measures the proportion of actual completers correctly identified as completers. Specificity measures the proportion of actual non-completers correctly identified as non-completers. Because the target classes are not extremely imbalanced, accuracy is useful, but sensitivity and specificity are also reported to show how well the model performs for each class.
+
+**e) ROC curve and AUC**
+
+```{r q2-2-e-roc-auc, fig.height=5, fig.width=6}
+roc_result <- roc(
+  response = learners_test$completed,
+  predictor = test_prob,
+  levels = c("no", "yes")
+)
+
+plot(
+  roc_result,
+  main = "ROC Curve for Final Logistic Regression Model"
+)
+
+auc_value <- auc(roc_result)
+
+auc_value
+```
+
+The ROC curve evaluates the model across many possible probability thresholds, rather than only using the 0.5 threshold. The AUC value summarises the model's ability to distinguish learners who completed the course from learners who did not. A higher AUC indicates better discrimination. Therefore, AUC is useful because it evaluates ranking performance across thresholds, while accuracy only evaluates one chosen threshold.
+
+Because the classes are reasonably balanced but not perfectly balanced (**57.2% no and 42.8% yes**), AUC is useful as a threshold-independent measure of discrimination, while accuracy alone may hide differences in how well the model handles each class.
+
+**f) Threshold adjustment for at-risk learner detection**
+
+```{r q2-2-f-threshold-adjustment}
+at_risk_threshold <- 0.60
+
+test_pred_060 <- ifelse(test_prob >= at_risk_threshold, "yes", "no")
+
+test_pred_060 <- factor(
+  test_pred_060,
+  levels = c("no", "yes")
+)
+
+confusion_matrix_060 <- table(
+  Actual = learners_test$completed,
+  Predicted = test_pred_060
+)
+
+confusion_matrix_060
+```
+
+```{r q2-2-f-threshold-metrics}
+tn_060 <- confusion_matrix_060["no", "no"]
+fp_060 <- confusion_matrix_060["no", "yes"]
+fn_060 <- confusion_matrix_060["yes", "no"]
+tp_060 <- confusion_matrix_060["yes", "yes"]
+
+accuracy_060 <- (tp_060 + tn_060) / sum(confusion_matrix_060)
+sensitivity_060 <- tp_060 / (tp_060 + fn_060)
+specificity_060 <- tn_060 / (tn_060 + fp_060)
+
+accuracy_060
+sensitivity_060
+specificity_060
+```
+
+The threshold is increased from 0.5 to 0.6 because the practical goal is to identify at-risk learners, meaning learners who are likely not to complete the course. Since the model predicts the probability of `completed = yes`, a higher threshold makes it harder for a learner to be classified as a completer. As a result, more learners are classified as `no`, which can improve the detection of non-completers.
+
+This threshold adjustment creates a trade-off. It is expected to increase specificity, meaning that more actual non-completers are correctly identified. However, it may reduce sensitivity, meaning that fewer actual completers are correctly classified as completers. For at-risk learner detection, this trade-off can be acceptable because missing at-risk learners may be more costly than incorrectly flagging some learners for extra support.
+
+## 2.3 Cross-Validated Assessment
+
+**a) 10-fold CV misclassification rate**
+
+```{r q2-3-a-cv-logistic}
+classification_cost <- function(actual, predicted_probability) {
+  predicted_class <- ifelse(predicted_probability >= 0.5, 1, 0)
+  mean(actual != predicted_class)
+}
+
+final_logit_cv <- glm(
+  formula(final_logit),
+  data = learners_clean,
+  family = binomial
+)
+
+set.seed(D)
+
+cv_final_logit <- cv.glm(
+  data = learners_clean,
+  glmfit = final_logit_cv,
+  cost = classification_cost,
+  K = 10
+)
+
+cv_error <- cv_final_logit$delta[1]
+cv_accuracy <- 1 - cv_error
+
+cv_error
+cv_accuracy
+```
+
+The 10-fold cross-validation uses the same final logistic regression formula as Section 2.2. The customised cost function converts predicted probabilities into predicted classes using the 0.5 threshold and then calculates the misclassification rate.
+
+The cross-validated misclassification rate is approximately **`r round(cv_error, 3)`**, so the corresponding cross-validated accuracy is approximately **`r round(cv_accuracy, 3)`**.
+
+**b) CV error versus single-split test error**
+
+```{r q2-3-b-cv-vs-test-error}
+test_error_050 <- 1 - accuracy
+
+cv_test_comparison <- data.frame(
+  Method = c("Single 80/20 test split", "10-fold cross-validation"),
+  Misclassification_Rate = c(
+    test_error_050,
+    cv_error
+  ),
+  Accuracy = c(
+    accuracy,
+    cv_accuracy
+  )
+)
+
+cv_test_comparison
+```
+
+The single 80/20 test split gives a test-set misclassification rate of approximately **0.264**, while the 10-fold cross-validation gives a misclassification rate of approximately **0.282**. These two values are fairly similar, so the earlier train-test split does not appear to be extremely lucky or unlucky. However, the single split is slightly more optimistic because its error rate is lower than the cross-validated error.
+
+A large gap between the single-split test error and the cross-validated error would suggest that the earlier split may not be representative. For example, a much lower single-split error would suggest a lucky test split, while a much higher single-split error would suggest an unusually difficult test split.
+
+**c) Why cross-validation is useful here**
+
+Cross-validation is useful in this classification problem because the dataset has 2,000 learners, which is large enough to split into ten folds while still leaving enough observations in each fold. The response classes are also reasonably balanced, with about 57.2% `no` and 42.8% `yes`, so each fold should contain both classes in useful numbers.
+
+A single 80/20 split can still be slightly lucky or unlucky, even when it is stratified. In 10-fold cross-validation, the model is repeatedly trained on nine folds and tested on the remaining fold, so every observation is used for validation once. This gives a more stable estimate of the final logistic model's likely performance on unseen learners than relying only on one test split.
+
+# 3. Question 3 — Synthesis and Reproducibility
+
+## 3.1 Executive Summary
+
+For the learning platform, the most useful finding is that course completion can be predicted with reasonably useful, but not perfect, accuracy from early engagement and performance variables. The final logistic model achieved a test accuracy of **0.736** at the 0.5 threshold and an AUC of **0.813**, meaning it can separate completers from non-completers fairly well across thresholds. For at-risk learner detection, raising the threshold to **0.60** increased specificity from **0.803** to **0.878**, so more actual non-completers were correctly identified. The main limitation is that this trade-off reduced sensitivity from **0.645** to **0.535**, meaning more actual completers would be incorrectly flagged as at risk. Therefore, the model is useful for prioritising support, but it should not be used as the only basis for intervention decisions.
+
+## 3.2 Reproducibility Statement
+
+This analysis can be reproduced by placing `energy_homes.csv` and `learners.csv` in the `data` folder, opening the same R Markdown file, installing the required packages, and running the report from top to bottom. The personalised seed value used in this report is `D = 599`, from the last three digits of Student ID `22145599`.
+
+The command `set.seed(D)` affects every random procedure in the report. In Question 1, it affects the 10-fold cross-validation folds for comparing Model A and Model B, and the 10-fold cross-validation folds for the polynomial models of orders 1 to 5. In Question 2, it affects the stratified 80/20 train-test split, which then affects the fitted logistic regression model, the test-set confusion matrix, accuracy, sensitivity, specificity, ROC curve, AUC, and threshold-adjustment results. It also affects the 10-fold cross-validation folds used to estimate the final logistic model's misclassification rate.
+
+If a different student ran the same code using their own value of `D`, the deterministic outputs would stay the same, including the missing-value counts, completion rate, and regression models fitted on the full `energy` dataset. However, outputs depending on random folds or the train-test split could change slightly, including the cross-validated MSE values, the selected training and test rows, the logistic regression estimates fitted on the training set, and the test-set performance metrics.
+
+## 3.3 Regression versus Classification
+
+Question 1 is a regression problem because the response variable, `heating_load`, is numeric and continuous. This means model errors can be measured as numeric distances between predicted and actual heating load values. Therefore, metrics such as MSE, residual standard error, and R-squared are appropriate because they measure prediction error and explained variation for a continuous outcome.
+
+Question 2 is a classification problem because the response variable, `completed`, has two categories: `yes` and `no`. For this type of outcome, the main question is whether each learner is placed into the correct class, not how far a numeric prediction is from a numeric target. Therefore, a confusion matrix, accuracy, sensitivity, specificity, ROC curve, AUC, and misclassification rate are more appropriate. These metrics evaluate how well the model separates completers from non-completers and how its performance changes under different probability thresholds.
+
+# 4. Bonus — Least Useful Predictor Experiment
+
+The predictor selected for this bonus experiment is window_age. It was chosen because it had one of the weakest relationships with heating_load in the exploratory analysis and was statistically insignificant in the full regression model.
+
+```{r}
+# Model without window_age
+bonus_without <- lm(
+  heating_load ~ relative_compactness + surface_area + wall_area +
+    roof_area + overall_height + orientation + glazing_area +
+    glazing_distribution + wall_insul_rating,
+  data = energy
+)
+
+# Model with window_age
+bonus_with <- lm(
+  heating_load ~ relative_compactness + surface_area + wall_area +
+    roof_area + overall_height + orientation + glazing_area +
+    glazing_distribution + wall_insul_rating + window_age,
+  data = energy
+)
+
+# Check window_age coefficient
+summary(bonus_with)$coefficients["window_age", ]
+
+# Training comparison
+bonus_training <- data.frame(
+  Model = c("Without window_age", "With window_age"),
+  Training_MSE = c(
+    mean(residuals(bonus_without)^2),
+    mean(residuals(bonus_with)^2)
+  ),
+  R_Squared = c(
+    summary(bonus_without)$r.squared,
+    summary(bonus_with)$r.squared
+  ),
+  Adjusted_R_Squared = c(
+    summary(bonus_without)$adj.r.squared,
+    summary(bonus_with)$adj.r.squared
+  ),
+  AIC = c(
+    AIC(bonus_without),
+    AIC(bonus_with)
+  )
+)
+
+bonus_training
+
+# Use glm only for cv.glm
+bonus_without_glm <- glm(
+  heating_load ~ relative_compactness + surface_area + wall_area +
+    roof_area + overall_height + orientation + glazing_area +
+    glazing_distribution + wall_insul_rating,
+  data = energy
+)
+
+bonus_with_glm <- glm(
+  heating_load ~ relative_compactness + surface_area + wall_area +
+    roof_area + overall_height + orientation + glazing_area +
+    glazing_distribution + wall_insul_rating + window_age,
+  data = energy
+)
+
+# 10-fold CV comparison
+set.seed(D)
+cv_without <- cv.glm(energy, bonus_without_glm, K = 10)$delta[1]
+
+set.seed(D)
+cv_with <- cv.glm(energy, bonus_with_glm, K = 10)$delta[1]
+
+bonus_cv <- data.frame(
+  Model = c("Without window_age", "With window_age"),
+  CV_MSE = c(cv_without, cv_with)
+)
+
+bonus_cv
+```
+
+The results confirm that window_age adds essentially no useful predictive value.
+
+The coefficient of `window_age` is approximately -0.0024, with a p-value of 0.858. Holding other predictors constant, a one-year increase in window age is associated with only a 0.0024 kWh/m² decrease in predicted heating load. This effect is extremely small and not statistically significant.
+
+Adding `window_age` slightly reduces training MSE from 10.54253 to 10.54208 and slightly increases R-squared from 0.9132390 to 0.9132427. However, adjusted R-squared decreases from 0.9122089 to 0.9120967, and AIC worsens from 4010.450 to 4012.418. More importantly, CV MSE increases from 10.82843 to 10.85146. Therefore, `window_age` does not improve prediction on unseen data, so the simpler model without `window_age` is preferred.
+
