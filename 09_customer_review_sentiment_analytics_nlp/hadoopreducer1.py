@@ -3,83 +3,107 @@
 import sys
 
 
-def print_word_count(combined_key, total_count):
+def print_document_results(
+    document_id,
+    word_counts,
+    total_words
+):
     """
-    Print the final count for one document-word pair.
-
-    Example input key:
-    train/pos/0_9.txt|good
-
-    Example output:
-    train/pos/0_9.txt    good    2
+    Print the word count and term frequency
+    for every word in one review.
     """
 
-    # Separate the document ID and word
-    document_id, word = combined_key.split(
-        "|",
-        1
+    # Sort the words to keep the output consistent.
+    words = sorted(
+        word_counts.keys()
     )
 
-    # Output three tab-separated fields
-    print(
-        document_id
-        + "\t"
-        + word
-        + "\t"
-        + str(total_count)
-    )
+    for word in words:
+
+        word_count = word_counts[word]
+
+        term_frequency = (
+            word_count
+            / total_words
+        )
+
+        print(
+            document_id
+            + "\t"
+            + word
+            + "\t"
+            + str(word_count)
+            + "\t"
+            + format(term_frequency, ".6f")
+        )
 
 
-# Store the key currently being counted
-current_key = None
+# Store the review currently being processed.
+current_document = None
 
-# Store the total count for the current key
-current_count = 0
+# Store word counts for the current review.
+current_word_counts = {}
+
+# Store the total number of words in the current review.
+current_total_words = 0
 
 
-# Hadoop sends sorted mapper output one line at a time
+# Read the sorted mapper output.
 for line in sys.stdin:
 
-    # Remove the line-break character and extra spaces
     line = line.strip()
 
-    # Ignore empty lines
+    # Ignore empty lines.
     if line == "":
         continue
 
-    # Separate the key and value
-    combined_key, count_text = line.split(
+    # Separate the document ID and word.
+    document_id, word = line.split(
         "\t",
         1
     )
 
-    # Convert the count from text into an integer
-    count = int(count_text)
+    # Continue processing the same review.
+    if document_id == current_document:
 
-    # The current line belongs to the same key
-    if combined_key == current_key:
+        current_total_words = (
+            current_total_words + 1
+        )
 
-        current_count = current_count + count
+        if word in current_word_counts:
+
+            current_word_counts[word] = (
+                current_word_counts[word] + 1
+            )
+
+        else:
+
+            current_word_counts[word] = 1
 
     else:
 
-        # Print the completed previous key
-        if current_key is not None:
+        # Print the completed previous review.
+        if current_document is not None:
 
-            print_word_count(
-                current_key,
-                current_count
+            print_document_results(
+                current_document,
+                current_word_counts,
+                current_total_words
             )
 
-        # Start counting a new key
-        current_key = combined_key
-        current_count = count
+        # Begin processing a new review.
+        current_document = document_id
+        current_word_counts = {
+            word: 1
+        }
+        current_total_words = 1
 
 
-# Print the final key after the loop ends
-if current_key is not None:
+# Print the final review after the loop finishes.
+if current_document is not None:
 
-    print_word_count(
-        current_key,
-        current_count
+    print_document_results(
+        current_document,
+        current_word_counts,
+        current_total_words
     )
